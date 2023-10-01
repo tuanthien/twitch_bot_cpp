@@ -1,0 +1,40 @@
+{
+  "version": 2,
+  "configurePresets": [
+    {
+      "name": "twb_default",
+      "hidden": true,
+      "cacheVariables": {
+        "TWB_WARNINGS_AS_ERRORS": false
+      }
+    },
+    {
+      "name": "user-eao_linux_paths",
+      "hidden": true,
+      "cacheVariables": {
+      }
+    },
+    {
+      "name": "linux-debug",
+      "hidden": false,
+      "displayName": "User Linux Debug",
+      "description": "User Debug",
+      "inherits": [
+        "user-eao_linux_paths",
+        "twb_default"
+      ],
+      "environment": {
+        "CMAKE_BUILD_PARALLEL_LEVEL": "4"
+      },
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/out/build/${presetName}",
+      "cacheVariables": {
+        "CMAKE_VERBOSE_MAKEFILE": "ON",
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/${presetName}",
+        "ENABLE_PCH": false,
+        "ENABLE_TESTING": true
+      }
+    }
+  ]
+}
