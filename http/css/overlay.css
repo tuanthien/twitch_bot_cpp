@@ -1,0 +1,123 @@
+:root {
+  --container-width: 400px;
+  --container-height: 700px;
+  --container-padding: 10px;
+  --container-inactive-row-gap: 10px;
+
+  --fade-out-duration: 1.0s;
+  --fade-in-duration: 0.4s;
+  --push-up-duration: 0.2s;
+  --message-padding-left: 10px;
+  --message-padding-right: 10px;
+}
+
+body {
+  margin: 0;
+  /* IE and Edge */
+  -ms-overflow-style: none;
+  /* Firefox */
+  scrollbar-width: none;
+}
+
+/* Hide scrollbar for Chrome, Safari and Opera */
+body::-webkit-scrollbar {
+  display: none;
+}
+
+@keyframes fadeOut {
+  0% {
+    opacity: 1;
+  }
+
+  20% {
+    transform: translate(0px, -50%);
+  }
+
+  100% {
+    transform: translate(0px, -100%);
+    opacity: 0;
+  }
+}
+
+@keyframes fadeIn {
+  0% {
+    bottom: var(--container-padding);
+    opacity: 0;
+    margin-right: calc(-100% - calc(--message-padding-left) - calc(--message-padding-right));
+  }
+
+  10% {
+    margin-right: calc(-40%);
+  }
+
+  100% {
+    opacity: 1;
+    margin-right: var(--container-padding) * 2;
+  }
+}
+
+#offscreen-region {
+  position: absolute;
+  width: var(--container-width);
+  padding: var(--container-padding);
+  opacity: 0;
+}
+
+#container ul {
+  list-style-type: none;
+}
+
+#container {
+  /* background-color: rgba(128, 255, 0, 0.292); */
+  height: var(--container-height);
+  padding: var(--container-padding);
+  position: relative;
+}
+
+#container,
+#container-inactive {
+  margin: 0;
+  width: var(--container-width);
+  display: flex;
+  flex-direction: column-reverse;
+  align-items: flex-end;
+  overflow-x: visible;
+  overflow-y: visible;
+}
+
+#container-inactive {
+  margin: 0;
+  padding: 0;
+  transition: transform var(--push-up-duration) linear;
+  row-gap: var(--container-inactive-row-gap);
+  overflow-y: visible;
+  /*   z-index: -1; */
+}
+
+#overflow-wrapper {
+  overflow-y: hidden;
+  scrollbar-width: none;
+  mask-image: linear-gradient(0deg,
+      rgba(0, 0, 0, 1) 0%,
+      rgba(0, 0, 0, 1) 75%,
+      rgba(0, 0, 0, 0) 100%);
+}
+
+.message.fadeOut {
+  animation: fadeOut var(--fade-out-duration);
+}
+
+.message.fadeIn {
+  position: absolute;
+  animation: fadeIn var(--fade-in-duration);
+}
+
+.message {
+  background-color: rgba(163, 42, 165, 0.437);
+  padding: 10px;
+  padding-left: var(--message-padding-left) !important;
+  padding-right: var(--message-padding-right) !important;
+  display: block;
+  width: calc(var(--container-width) - var(--message-padding-left) - var(--message-padding-right));
+  height: auto;
+}

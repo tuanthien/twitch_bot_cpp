@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Main menu</title>
+</head>
+
+<body>
+  <a href="overlay.html">Overlay</a>
+  <script type="application/javascript">
+    const ws = new WebSocket('ws://localhost:8040');
+    ws.onopen = () => {
+      console.log('WebSocket connection opened');
+    }
+    ws.onmessage = (msg) => {
+      console.log('Message: ', msg.data);
+    }
+    ws.onclose = (msg) => {
+      console.log('Closed');
+    }
+  </script>
+</body>
+
+</html>

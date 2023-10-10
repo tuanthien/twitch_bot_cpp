@@ -17,13 +17,15 @@
 #include <fmt/format.h>
 
 #include "TwitchIRCParser.hpp"
+#include "ChatServer.hpp"
+#include "Broadcaster.hpp"
 
-namespace beast = boost::beast;         // from <boost/beast.hpp>
-namespace http = beast::http;           // from <boost/beast/http.hpp>
-namespace websocket = beast::websocket; // from <boost/beast/websocket.hpp>
-namespace net = boost::asio;            // from <boost/asio.hpp>
-namespace ssl = boost::asio::ssl;       // from <boost/asio/ssl.hpp>
-using tcp = boost::asio::ip::tcp;       // from <boost/asio/ip/tcp.hpp>
+namespace beast            = boost::beast;// from <boost/beast.hpp>
+namespace http             = beast::http;// from <boost/beast/http.hpp>
+namespace websocket        = beast::websocket;// from <boost/beast/websocket.hpp>
+namespace net              = boost::asio;// from <boost/asio.hpp>
+namespace ssl              = boost::asio::ssl;// from <boost/asio/ssl.hpp>
+using tcp                  = boost::asio::ip::tcp;// from <boost/asio/ip/tcp.hpp>
 using tcp_resolver_results = typename tcp::resolver::results_type;
 
 // Report a failure
@@ -33,22 +35,22 @@ void fail(beast::error_code ec, char const *what)
 }
 
 // Sends a WebSocket message and prints the response
-net::awaitable<void>
-do_session(
-    std::string host,
-    std::string port,
-    std::string text,
-    std::string channel,
-    ssl::context &ctx)
+net::awaitable<void> do_session(
+  std::string host,
+  std::string port,
+  std::string text,
+  std::string channel,
+  ssl::context &ctx,
+  std::shared_ptr<TwitchBot::Broadcaster> broadcaster)
 {
   // These objects perform our I/O
-  auto resolver = net::use_awaitable.as_default_on(
-      tcp::resolver(co_await net::this_coro::executor));
+  auto resolver = net::use_awaitable.as_default_on(tcp::resolver(co_await net::this_coro::executor));
 
   using executor_type = net::any_io_executor;
-  using executor_with_default = net::as_tuple_t<net::use_awaitable_t<executor_type>>::executor_with_default<executor_type>;
+  using executor_with_default =
+    net::as_tuple_t<net::use_awaitable_t<executor_type>>::executor_with_default<executor_type>;
   using my_tcp_stream = beast::basic_stream<net::ip::tcp, executor_with_default, beast::unlimited_rate_policy>;
-  using my_websocket = websocket::stream<beast::ssl_stream<my_tcp_stream>>;
+  using my_websocket  = websocket::stream<beast::ssl_stream<my_tcp_stream>>;
   my_websocket ws{co_await boost::asio::this_coro::executor, ctx};
 
   // auto ws = websocket::stream<beast::ssl_stream<beast::tcp_stream>>(co_await net::this_coro::executor, ctx);
@@ -77,25 +79,18 @@ do_session(
   beast::get_lowest_layer(ws).expires_never();
 
   // Set suggested timeout settings for the websocket
-  ws.set_option(
-      websocket::stream_base::timeout::suggested(
-          beast::role_type::client));
+  ws.set_option(websocket::stream_base::timeout::suggested(beast::role_type::client));
 
   // Set a decorator to change the User-Agent of the handshake
-  ws.set_option(websocket::stream_base::decorator(
-      [](websocket::request_type &req)
-      {
-        req.set(http::field::user_agent,
-                std::string(BOOST_BEAST_VERSION_STRING) +
-                    " websocket-client-coro");
-      }));
+  ws.set_option(websocket::stream_base::decorator([](websocket::request_type &req) {
+    req.set(http::field::user_agent, std::string(BOOST_BEAST_VERSION_STRING) + " websocket-client-coro");
+  }));
 
   // Perform the websocket handshake
   co_await ws.async_handshake(host, "/");
 
   // This buffer will hold the incoming message
-  using flat_u8buffer =
-      beast::basic_flat_buffer<std::allocator<char8_t>>;
+  using flat_u8buffer = beast::basic_flat_buffer<std::allocator<char8_t>>;
   flat_u8buffer buffer;
 
   // twitch.tv/membership twitch.tv/tags
@@ -103,38 +98,30 @@ do_session(
   co_await ws.async_write(net::buffer("NICK " + text + "\r\n"));
   co_await ws.async_write(net::buffer("JOIN #" + channel + "\r\n"));
 
-  while (true)
-  {
+  while (true) {
     // Read a message into our buffer
     co_await ws.async_read(buffer);
     auto buffer_data = reinterpret_cast<const char8_t *>(buffer.cdata().data());
-
+    broadcaster->Send(std::u8string_view(buffer_data, buffer.size()));
     auto message = TwitchBot::Parse(std::u8string_view(buffer_data, buffer.size()));
-    if (message)
-    {
+    if (message) {
       auto &[command, tags, source, parameters] = message.value();
-      switch (command.Kind)
-      {
-      case TwitchBot::IRCCommand::PRIVMSG:
-      {
+      switch (command.Kind) {
+      case TwitchBot::IRCCommand::PRIVMSG: {
         auto commandParams = TwitchBot::ParseCommand<TwitchBot::IRCCommand::PRIVMSG>{}(message.value());
-        if (commandParams)
-        {
-          auto &privmsg = parameters.value();
+        if (commandParams) {
+          auto &privmsg                 = parameters.value();
           auto &[displayName, msgParts] = commandParams.value();
-          std::cout << std::string_view(reinterpret_cast<const char *>(displayName.data()), displayName.size())
-                    << ": "
+          std::cout << std::string_view(reinterpret_cast<const char *>(displayName.data()), displayName.size()) << ": "
                     << std::string_view(reinterpret_cast<const char *>(privmsg.data()), privmsg.size()) << '\n';
         }
         break;
       }
-      case TwitchBot::IRCCommand::PING:
-      {
+      case TwitchBot::IRCCommand::PING: {
         auto commandParams = TwitchBot::ParseCommand<TwitchBot::IRCCommand::PING>{}(parameters);
-        if (commandParams)
-        {
+        if (commandParams) {
           auto &[payload] = commandParams.value();
-          auto pong = std::u8string(u8"PONG :").append(payload).append(u8"\r\n");
+          auto pong       = std::u8string(u8"PONG :").append(payload).append(u8"\r\n");
           co_await ws.async_write(net::buffer(pong));
         }
         break;
@@ -157,21 +144,24 @@ do_session(
 int main(int argc, char **argv)
 {
   // Check command line arguments.
-  if (argc != 5)
-  {
+  if (argc != 5) {
     std::cerr << "Usage: websocket-client-awaitable <host> <port> <text>\n"
               << "Example:\n"
               << "    websocket-client-awaitable echo.websocket.org 80 \"Hello, world!\"\n";
     return EXIT_FAILURE;
   }
-  auto const host = argv[1];
-  auto const port = argv[2];
-  auto const text = argv[3];
+  auto const host    = argv[1];
+  auto const port    = argv[2];
+  auto const text    = argv[3];
   auto const channel = argv[4];
+
+  auto broadcaster = std::make_shared<TwitchBot::Broadcaster>();
 
   // The io_context is required for all I/O
   net::io_context ioc;
 
+  auto server = TwitchBot::ChatServer(ioc, u8"0.0.0.0", 8040, u8"http", broadcaster);
+  server.Start();
   // The SSL context is required, and holds certificates
   ssl::context ctx{ssl::context::tlsv12_client};
 
@@ -179,20 +169,13 @@ int main(int argc, char **argv)
   load_root_certificates(ctx);
 
   // Launch the asynchronous operation
-  net::co_spawn(ioc,
-                do_session(host, port, text, channel, ctx),
-                [](std::exception_ptr e)
-                {
-                  if (e)
-                    try
-                    {
-                      std::rethrow_exception(e);
-                    }
-                    catch (std::exception &e)
-                    {
-                      std::cerr << "Error: " << e.what() << "\n";
-                    }
-                });
+  net::co_spawn(ioc, do_session(host, port, text, channel, ctx, broadcaster), [](std::exception_ptr e) {
+    if (e) try {
+        std::rethrow_exception(e);
+      } catch (std::exception &e) {
+        std::cerr << "Error: " << e.what() << "\n";
+      }
+  });
 
   // Run the I/O service. The call will return when
   // the socket is closed.

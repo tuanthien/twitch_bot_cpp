@@ -11,7 +11,8 @@ target_sources(${MODULE_NAME} PRIVATE
 )
 
 include(_cmake/Dependencies.cmake)
-add_subdirectory(TwitchIRCParser)
+add_subdirectory(Modules/TwitchIRCParser)
+add_subdirectory(Modules/ChatServer)
 
 target_link_libraries(
   ${MODULE_NAME} 
@@ -21,14 +22,14 @@ target_link_libraries(
   
   #fmt::fmt-header-only
   #spdlog::spdlog
-  #simdjson::simdjson_static
+  simdjson::simdjson_static
   OpenSSL::SSL
   Boost::asio
   Boost::beast
   #Boost::program_options
   
   TwitchIRCParser
-  
+  ChatServer
   "$<BUILD_INTERFACE:${PROJECT_WARNINGS_TARGET}>" 
   "$<BUILD_INTERFACE:${PROJECT_OPTIONS_TARGET}>" 
 )

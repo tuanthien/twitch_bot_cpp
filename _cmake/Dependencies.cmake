@@ -9,14 +9,15 @@ CPMAddPackage(
   VERSION 1.83.0
   GITHUB_REPOSITORY "boostorg/boost"
   GIT_TAG "boost-1.83.0"
+  GIT_SHALLOW ON
   OPTIONS
-  "BOOST_INCLUDE_LIBRARIES:STRING=beast\\\\;atomic\\\\;chrono\\\\;container\\\\;date_time\\\\;exception\\\\;filesystem\\\\;thread\\\\;program_options\\\\;asio\'"
+  "BOOST_INCLUDE_LIBRARIES:STRING=lockfree\\\\;beast\\\\;atomic\\\\;chrono\\\\;container\\\\;date_time\\\\;exception\\\\;filesystem\\\\;thread\\\\;program_options\\\\;asio\'"
   "BOOST_EXCLUDE_LIBRARIES \'python\\\\;parameter_python\'"
   "BOOST_ENABLE_MPI OFF"
   "BOOST_ENABLE_PYTHON OFF"
   "CMAKE_BUILD_TYPE Release"
   "BUILD_SHARED_LIBS ON"
-  FIND_PACKAGE_ARGUMENTS "COMPONENTS program_options beast asio"
+  FIND_PACKAGE_ARGUMENTS "COMPONENTS program_options beast asio lockfree"
   SYSTEM YES
   EXCLUDE_FROM_ALL YES
 )
@@ -54,14 +55,23 @@ CPMAddPackage(
 # )
 
 # simdjson
+CPMAddPackage(
+	GIT_REPOSITORY https://github.com/simdjson/simdjson.git
+	GIT_SHALLOW ON
+	GIT_TAG v3.3.0
+  OPTIONS
+  "SIMDJSON_DEVELOPER_MODE OFF"
+  "SIMDJSON_EXCEPTIONS OFF"
+  "SIMDJSON_BUILD_STATIC_LIB ON"
+  SYSTEM YES
+  EXCLUDE_FROM_ALL YES
+)
+
+# explicit-memset
 # CPMAddPackage(
-# 	GIT_REPOSITORY https://github.com/simdjson/simdjson.git
+# 	GIT_REPOSITORY https://github.com/arnavyc/explicit-memset.git
 # 	GIT_SHALLOW    ON
-# 	GIT_TAG        v3.3.0
-#   OPTIONS
-#   "SIMDJSON_DEVELOPER_MODE OFF"
-#   "SIMDJSON_EXCEPTIONS OFF"
-#   "SIMDJSON_BUILD_STATIC_LIB ON"
+# 	GIT_TAG        28b3d5e969bbca4be341e2e05f4f91f972783087
 #   SYSTEM YES
 #   EXCLUDE_FROM_ALL YES
 # )
