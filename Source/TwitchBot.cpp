@@ -14,11 +14,16 @@
 #include <functional>
 #include <iostream>
 #include <string>
+#include <fmt/core.h>
 #include <fmt/format.h>
+#include <string_view>
+#include <limits>
 
 #include "TwitchIRCParser.hpp"
 #include "ChatServer.hpp"
 #include "Broadcaster.hpp"
+#include "TwitchBotConfig.hpp"
+#include "ServerConfig.hpp"
 
 namespace beast            = boost::beast;// from <boost/beast.hpp>
 namespace http             = beast::http;// from <boost/beast/http.hpp>
@@ -34,14 +39,14 @@ void fail(beast::error_code ec, char const *what)
   std::cerr << what << ": " << ec.message() << "\n";
 }
 
+std::string_view to_string_view(const std::u8string &str)
+{
+  return std::string_view(reinterpret_cast<const char *>(str.data()), str.size());
+}
+
 // Sends a WebSocket message and prints the response
 net::awaitable<void> do_session(
-  std::string host,
-  std::string port,
-  std::string text,
-  std::string channel,
-  ssl::context &ctx,
-  std::shared_ptr<TwitchBot::Broadcaster> broadcaster)
+  TwitchBot::TwitchChatConnection &&connection, ssl::context &ctx, std::shared_ptr<TwitchBot::Broadcaster> broadcaster)
 {
   // These objects perform our I/O
   auto resolver = net::use_awaitable.as_default_on(tcp::resolver(co_await net::this_coro::executor));
@@ -59,8 +64,10 @@ net::awaitable<void> do_session(
   //     websocket::stream<
   //         beast::ssl_stream<beast::tcp_stream>>(co_await net::this_coro::executor));
 
+  auto &[host, port, channel, nick] = connection;
+  auto portStr                      = fmt::format("{}", port);
   // Look up the domain name
-  auto const results = co_await resolver.async_resolve(host, port);
+  auto const results = co_await resolver.async_resolve(host, portStr);
 
   // Set a timeout on the operation
   beast::get_lowest_layer(ws).expires_after(std::chrono::seconds(30));
@@ -95,8 +102,8 @@ net::awaitable<void> do_session(
 
   // twitch.tv/membership twitch.tv/tags
   co_await ws.async_write(net::buffer("CAP REQ :twitch.tv/tags twitch.tv/commands\r\n"));
-  co_await ws.async_write(net::buffer("NICK " + text + "\r\n"));
-  co_await ws.async_write(net::buffer("JOIN #" + channel + "\r\n"));
+  co_await ws.async_write(net::buffer(std::string("NICK ") + nick + "\r\n"));
+  co_await ws.async_write(net::buffer(std::string("JOIN #") + channel + "\r\n"));
 
   while (true) {
     // Read a message into our buffer
@@ -140,40 +147,42 @@ net::awaitable<void> do_session(
 }
 
 //------------------------------------------------------------------------------
-
-int main(int argc, char **argv)
+int main()
 {
-  // Check command line arguments.
-  if (argc != 5) {
-    std::cerr << "Usage: websocket-client-awaitable <host> <port> <text>\n"
-              << "Example:\n"
-              << "    websocket-client-awaitable echo.websocket.org 80 \"Hello, world!\"\n";
+
+  constexpr static const std::u8string_view twitchJsonUtf8Path = u8"config/twitch.json";
+  auto connection                                              = TwitchBot::ReadTwitchBotConfig(twitchJsonUtf8Path);
+  if (not connection) {
     return EXIT_FAILURE;
   }
-  auto const host    = argv[1];
-  auto const port    = argv[2];
-  auto const text    = argv[3];
-  auto const channel = argv[4];
+  constexpr static const std::u8string_view serverJsonUtf8Path = u8"config/server.json";
+  auto serverConfig                                            = TwitchBot::ReadServerConfig(serverJsonUtf8Path);
+  if (not serverConfig) {
+    return EXIT_FAILURE;
+  }
 
   auto broadcaster = std::make_shared<TwitchBot::Broadcaster>();
 
   // The io_context is required for all I/O
   net::io_context ioc;
 
-  auto server = TwitchBot::ChatServer(ioc, u8"0.0.0.0", 8040, u8"http", broadcaster);
+  auto server = TwitchBot::ChatServer(
+    ioc, serverConfig->Http.Host, serverConfig->Http.Port, serverConfig->Http.RootDoc, broadcaster);
+
   server.Start();
   // The SSL context is required, and holds certificates
   ssl::context ctx{ssl::context::tlsv12_client};
 
   // This holds the root certificate used for verification
-  load_root_certificates(ctx);
+  boost::system::error_code ec;
+  LoadRootCertificates(ctx, ec);
 
   // Launch the asynchronous operation
-  net::co_spawn(ioc, do_session(host, port, text, channel, ctx, broadcaster), [](std::exception_ptr e) {
+  net::co_spawn(ioc, do_session(std::move(*connection), ctx, broadcaster), [](std::exception_ptr e) {
     if (e) try {
         std::rethrow_exception(e);
-      } catch (std::exception &e) {
-        std::cerr << "Error: " << e.what() << "\n";
+      } catch (std::exception &ex) {
+        std::cerr << "Error: " << ex.what() << "\n";
       }
   });
 

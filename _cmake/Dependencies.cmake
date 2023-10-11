@@ -23,13 +23,13 @@ CPMAddPackage(
 )
 
 # fmt
-# CPMAddPackage(
-#   GITHUB_REPOSITORY fmtlib/fmt
-#   GIT_TAG 9.1.0
-#   OPTIONS "FMT_HEADER_ONLY ON" 
-#   SYSTEM YES
-#   EXCLUDE_FROM_ALL YES
-# )
+CPMAddPackage(
+  GITHUB_REPOSITORY fmtlib/fmt
+  GIT_TAG 9.1.0
+  OPTIONS "FMT_HEADER_ONLY ON" 
+  SYSTEM YES
+  EXCLUDE_FROM_ALL YES
+)
 
 # spdlog
 # if(CMAKE_SYSTEM_NAME STREQUAL "Windows")

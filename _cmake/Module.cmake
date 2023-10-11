@@ -6,6 +6,10 @@ add_executable(${MODULE_NAME}
 target_sources(${MODULE_NAME} PRIVATE 
   Source/Certificates.hpp
   Source/Certificates.cpp
+  Source/ServerConfig.hpp
+  Source/ServerConfig.cpp
+  Source/TwitchBotConfig.hpp
+  Source/TwitchBotConfig.cpp
   Source/TwitchBot.hpp
   Source/TwitchBot.cpp
 )
@@ -20,7 +24,7 @@ target_link_libraries(
     
   PRIVATE
   
-  #fmt::fmt-header-only
+  fmt::fmt-header-only
   #spdlog::spdlog
   simdjson::simdjson_static
   OpenSSL::SSL

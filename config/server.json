@@ -1,0 +1,10 @@
+{
+  "http": {
+    "host": "0.0.0.0",
+    "port": 8040,
+    "root_doc": "http"
+  },
+  "websocket": {
+    "queue_size": 64
+  }
+}
