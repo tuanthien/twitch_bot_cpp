@@ -1,3 +1,5 @@
+
+
 var words = ['apple', 'beer', 'cake', 'potato', 'orange', 'Got', 'ability', 'shop', 'recall', 'fruit', 'easy', 'dirty', 'giant', 'shaking', 'ground', 'weather', 'lesson', 'almost', 'square', 'forward', 'bend', 'cold', 'broken', 'distant', 'adjective'];
 
 function randomWords() {
@@ -45,10 +47,38 @@ const inactive = document.querySelector('#container-inactive');
 const container = document.querySelector('#container');
 const offscreenRegion = document.querySelector('#offscreen-region');
 
-async function pushMessage(index, text, timeout) {
+async function pushMessage(parsedMessage, timeout) {
+  if(parsedMessage.id !== 1) { return; }
+  const msgParts = parsedMessage.message.parts;
+  const displayName = parsedMessage.message.display_name;
+
+  const name = document.createElement("div")
+  name.classList.add('display-name');
+  name.append(document.createTextNode(displayName));
+
+  let msg = document.createElement("div");
+  msg.classList.add('message-content');
+
+  for (const msgPart of msgParts) {
+    switch (msgPart.type) {
+      case 'text': {
+        // since msgParts is in reversed order, we need to prepend
+        msg.prepend(document.createTextNode(msgPart.value));
+        break;
+      }
+      case 'emote': {
+        let elem = document.createElement("img");
+        elem.setAttribute('src', msgPart.value);
+        msg.prepend(elem);
+        break;
+      }
+    }
+  }
+
   // Create message HTML element
   const message = document.createElement('li');
-  message.innerText = text;
+  message.append(name);
+  message.append(msg);
   message.classList.add('message');
 
   // Add message element into offscreen-region
@@ -104,14 +134,24 @@ async function pushMessage(index, text, timeout) {
 // minimum delay (+50ms) between messages necessary to not break animations
 const minimumDelay = fadeInDuration + pushUpDuration + 0.05;
 const pushingDelay = 0.5 + minimumDelay;
-const messageTimeout = 5.0;
+const messageTimeout = 15.0;
 container.dataset.messageCount = 0;
 container.dataset.messageMax = 20;
 
-for (let i = 0; i < 100; ++i) {
+const ws = new WebSocket('ws://localhost:8040');
 
+ws.onopen = () => {
+  console.log('WebSocket connection opened');
+}
+ws.onmessage = (msg) => {
+  console.log('Message: ', msg.data);
+  message = JSON.parse(msg.data);
   setTimeout(() => {
     container.dataset.messageCount++;
-    pushMessage(i, ` ${i}: ${randomWords()}`, messageTimeout);
-  }, (pushingDelay * 1000) * i);
+    pushMessage(message, messageTimeout);
+  }, pushingDelay * 1000);
+}
+
+ws.onclose = (msg) => {
+  console.log('Closed');
 }

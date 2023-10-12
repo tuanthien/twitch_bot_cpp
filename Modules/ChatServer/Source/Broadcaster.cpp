@@ -30,6 +30,7 @@ void Broadcaster::Send(const std::string& message)
     session->NotifySend();
   }
 }
+
 void Broadcaster::Send(std::u8string_view message)
 {
   std::lock_guard<std::mutex> lock(mutex_);

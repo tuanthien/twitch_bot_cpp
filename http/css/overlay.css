@@ -113,11 +113,22 @@ body::-webkit-scrollbar {
 }
 
 .message {
-  background-color: rgba(163, 42, 165, 0.437);
-  padding: 10px;
+  background-color: rgba(59, 59, 59, 0.671);
+  padding: 5px;
   padding-left: var(--message-padding-left) !important;
   padding-right: var(--message-padding-right) !important;
   display: block;
   width: calc(var(--container-width) - var(--message-padding-left) - var(--message-padding-right));
   height: auto;
+}
+
+.message > .display-name {
+  color: rgb(0, 93, 146);
+  margin: 3px;
+  font: 12px;
+}
+
+.message > .message-content {
+  margin: 5px;
+  font-size: 20px;
 }

@@ -22,8 +22,6 @@ add_subdirectory(Modules/ChatServer)
 
 target_link_libraries(
   ${MODULE_NAME} 
-  PUBLIC
-
   PRIVATE
   TwitchIRCParser
   ChatServer
