@@ -24,6 +24,7 @@
 #include "Broadcaster.hpp"
 #include "TwitchBotConfig.hpp"
 #include "ServerConfig.hpp"
+#include "MessageSerializer.hpp"
 
 namespace beast            = boost::beast;// from <boost/beast.hpp>
 namespace http             = beast::http;// from <boost/beast/http.hpp>
@@ -37,11 +38,6 @@ using tcp_resolver_results = typename tcp::resolver::results_type;
 void fail(beast::error_code ec, char const *what)
 {
   std::cerr << what << ": " << ec.message() << "\n";
-}
-
-std::string_view to_string_view(const std::u8string &str)
-{
-  return std::string_view(reinterpret_cast<const char *>(str.data()), str.size());
 }
 
 // Sends a WebSocket message and prints the response
@@ -109,7 +105,7 @@ net::awaitable<void> do_session(
     // Read a message into our buffer
     co_await ws.async_read(buffer);
     auto buffer_data = reinterpret_cast<const char8_t *>(buffer.cdata().data());
-    broadcaster->Send(std::u8string_view(buffer_data, buffer.size()));
+    // broadcaster->Send(std::u8string_view(buffer_data, buffer.size()));
     auto message = TwitchBot::Parse(std::u8string_view(buffer_data, buffer.size()));
     if (message) {
       auto &[command, tags, source, parameters] = message.value();
@@ -121,6 +117,7 @@ net::awaitable<void> do_session(
           auto &[displayName, msgParts] = commandParams.value();
           std::cout << std::string_view(reinterpret_cast<const char *>(displayName.data()), displayName.size()) << ": "
                     << std::string_view(reinterpret_cast<const char *>(privmsg.data()), privmsg.size()) << '\n';
+          broadcaster->Send(Serialize(commandParams.value()));
         }
         break;
       }

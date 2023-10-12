@@ -11,5 +11,14 @@ inline auto to_u8string(std::string_view view) -> std::u8string
   memcpy(u8str.data(), view.data(), u8str.size());
   return u8str;
 }
+inline auto to_string_view(const std::u8string &str) -> std::string_view
+{
+  return std::string_view(reinterpret_cast<const char *>(str.data()), str.size());
+}
+
+inline auto to_string_view(const std::u8string_view &str) -> std::string_view
+{
+  return std::string_view(reinterpret_cast<const char *>(str.data()), str.size());
+}
 
 }// namespace TwitchBot

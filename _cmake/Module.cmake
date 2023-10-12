@@ -10,6 +10,8 @@ target_sources(${MODULE_NAME} PRIVATE
   Source/ServerConfig.cpp
   Source/TwitchBotConfig.hpp
   Source/TwitchBotConfig.cpp
+  Source/MessageSerializer.hpp
+  Source/MessageSerializer.cpp
   Source/TwitchBot.hpp
   Source/TwitchBot.cpp
 )
@@ -21,19 +23,19 @@ add_subdirectory(Modules/ChatServer)
 target_link_libraries(
   ${MODULE_NAME} 
   PUBLIC
-    
+
   PRIVATE
-  
+  TwitchIRCParser
+  ChatServer
+
   fmt::fmt-header-only
   #spdlog::spdlog
   simdjson::simdjson_static
   OpenSSL::SSL
   Boost::asio
   Boost::beast
+  Boost::json
   #Boost::program_options
-  
-  TwitchIRCParser
-  ChatServer
   "$<BUILD_INTERFACE:${PROJECT_WARNINGS_TARGET}>" 
   "$<BUILD_INTERFACE:${PROJECT_OPTIONS_TARGET}>" 
 )

@@ -19,6 +19,7 @@ public:
   auto Join(WebSocketSession *session, boost::lockfree::spsc_queue<std::u8string> &queue) -> bool;
   void Leave(WebSocketSession *session);
   void Send(std::u8string_view message);
+  void Send(const std::string& message);
   void Stop();
 };
 
