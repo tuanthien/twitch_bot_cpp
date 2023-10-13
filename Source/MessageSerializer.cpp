@@ -4,11 +4,11 @@
 
 namespace TwitchBot {
 
-auto Serialize(const CommandParameters<IRCCommand::PRIVMSG> &parameters) -> std::string
+auto Serialize(const IRC::CommandParameters<IRC::IRCCommand::PRIVMSG> &parameters) -> std::string
 {
   namespace json = boost::json;
   json::object obj;
-  obj["id"] = json::value(static_cast<int64_t>(IRCCommand::PRIVMSG));
+  obj["id"] = json::value(static_cast<int64_t>(IRC::IRCCommand::PRIVMSG));
 
   json::object message;
   message["display_name"] = json::value(to_string_view(parameters.DisplayName));
@@ -17,13 +17,13 @@ auto Serialize(const CommandParameters<IRCCommand::PRIVMSG> &parameters) -> std:
   for (const auto &part : parameters.Parts) {
     parts.push_back(std::visit(
       overloaded{
-        [](const TextPart &text) {
+        [](const IRC::TextPart &text) {
           json::object jsonPart;
           jsonPart["type"]  = json::value("text");
           jsonPart["value"] = json::value(to_string_view(text.Value));
           return jsonPart;
         },
-        [](const EmotePart &emote) {
+        [](const IRC::EmotePart &emote) {
           json::object jsonPart;
           jsonPart["type"]  = json::value("emote");
           jsonPart["value"] = json::value(to_string_view(emote.Value));

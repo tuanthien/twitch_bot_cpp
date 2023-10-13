@@ -62,14 +62,13 @@ async function pushMessage(parsedMessage, timeout) {
   for (const msgPart of msgParts) {
     switch (msgPart.type) {
       case 'text': {
-        // since msgParts is in reversed order, we need to prepend
-        msg.prepend(document.createTextNode(msgPart.value));
+        msg.append(document.createTextNode(msgPart.value));
         break;
       }
       case 'emote': {
         let elem = document.createElement("img");
         elem.setAttribute('src', msgPart.value);
-        msg.prepend(elem);
+        msg.append(elem);
         break;
       }
     }

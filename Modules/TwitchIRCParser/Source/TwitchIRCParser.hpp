@@ -5,7 +5,7 @@
 #include <vector>
 #include <variant>
 
-namespace TwitchBot
+namespace TwitchBot::IRC
 {
   struct Source
   {

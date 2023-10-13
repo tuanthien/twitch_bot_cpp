@@ -8,7 +8,7 @@
 
 namespace TwitchBot {
 
-auto ReadTwitchBotConfig(std::u8string_view path) -> std::optional<TwitchChatConnection>
+auto ReadTwitchBotConfig(std::u8string_view path) -> std::optional<TwitchBotConfig>
 {
   namespace json = simdjson;
 
@@ -63,8 +63,31 @@ auto ReadTwitchBotConfig(std::u8string_view path) -> std::optional<TwitchChatCon
 
   fmt::print("Twitch:\n\tHost: {}\n\tPort: {}\n\tChannel: {}\n\tNick: {}\n", host, port, channel, nick);
 
+  json::ondemand::object commands;
+  error = twitchJson["commands"].get_object().get(commands);
+  if (error) {
+    fmt::print("Error: commands field is not a object");
+    return std::nullopt;
+  }
 
-  return TwitchChatConnection{std::string(host), port, std::string(channel), std::string(nick)};
+  json::ondemand::object cpp;
+  error = commands["cpp"].get_object().get(cpp);
+  if (error) {
+    fmt::print("Error: cpp field is not a object");
+    return std::nullopt;
+  }
+
+  std::string_view clangFormatPath;
+  error = cpp["clang_format_path"].get_string().get(clangFormatPath);
+  if (error) {
+    fmt::print("Error: clang_format_path field is not a string");
+    return std::nullopt;
+  }
+
+
+  return TwitchBotConfig{
+    TwitchChatConnection{std::string(host), port, std::string(channel), std::string(nick)},
+    BotCommandCppConfig{std::filesystem::path(clangFormatPath)}};
 }
 
 }// namespace TwitchBot

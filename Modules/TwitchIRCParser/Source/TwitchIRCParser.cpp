@@ -3,8 +3,7 @@
 #include <charconv>
 #include <algorithm>
 
-#include <iostream>
-namespace TwitchBot {
+namespace TwitchBot::IRC {
 struct IRCComponents
 {
   std::u8string_view Tags;
@@ -196,6 +195,8 @@ static auto privateMessageSplitParts(std::u8string_view message, const std::opti
   }
 
   if (not message.empty()) parts.emplace_back(std::in_place_type<TextPart>, message);
+  
+  std::reverse(parts.begin(), parts.end());
 
   return parts;
 }

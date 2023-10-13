@@ -2,5 +2,10 @@
   "host": "irc-ws.chat.twitch.tv",
   "port": 443,
   "nick": "justinfan9481",
-  "channel": "quantumapprentice"
+  "channel": "quantumapprentice",
+  "commands": {
+    "cpp": { 
+      "clang_format_path": "/usr/bin/clang-format"
+    }
+  }
 }

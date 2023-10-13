@@ -18,13 +18,17 @@
 #include <fmt/format.h>
 #include <string_view>
 #include <limits>
+#include <utility>
 
+#include "Conversion.hpp"
 #include "TwitchIRCParser.hpp"
 #include "ChatServer.hpp"
 #include "Broadcaster.hpp"
 #include "TwitchBotConfig.hpp"
 #include "ServerConfig.hpp"
 #include "MessageSerializer.hpp"
+#include "Commands/CppFormat.hpp"
+namespace TwitchBot {
 
 namespace beast            = boost::beast;// from <boost/beast.hpp>
 namespace http             = beast::http;// from <boost/beast/http.hpp>
@@ -40,9 +44,11 @@ void fail(beast::error_code ec, char const *what)
   std::cerr << what << ": " << ec.message() << "\n";
 }
 
+CommandResult handleBotCommand(std::u8string_view text) {}
+
 // Sends a WebSocket message and prints the response
 net::awaitable<void> do_session(
-  TwitchBot::TwitchChatConnection &&connection, ssl::context &ctx, std::shared_ptr<TwitchBot::Broadcaster> broadcaster)
+  TwitchBot::TwitchBotConfig &&config, ssl::context &ctx, std::shared_ptr<TwitchBot::Broadcaster> broadcaster)
 {
   // These objects perform our I/O
   auto resolver = net::use_awaitable.as_default_on(tcp::resolver(co_await net::this_coro::executor));
@@ -60,7 +66,7 @@ net::awaitable<void> do_session(
   //     websocket::stream<
   //         beast::ssl_stream<beast::tcp_stream>>(co_await net::this_coro::executor));
 
-  auto &[host, port, channel, nick] = connection;
+  auto &[host, port, channel, nick] = config.Connection;
   auto portStr                      = fmt::format("{}", port);
   // Look up the domain name
   auto const results = co_await resolver.async_resolve(host, portStr);
@@ -101,28 +107,38 @@ net::awaitable<void> do_session(
   co_await ws.async_write(net::buffer(std::string("NICK ") + nick + "\r\n"));
   co_await ws.async_write(net::buffer(std::string("JOIN #") + channel + "\r\n"));
 
+  std::unique_ptr<Command> botCommand = std::make_unique<CppFormat>();
+
   while (true) {
     // Read a message into our buffer
     co_await ws.async_read(buffer);
     auto buffer_data = reinterpret_cast<const char8_t *>(buffer.cdata().data());
     // broadcaster->Send(std::u8string_view(buffer_data, buffer.size()));
-    auto message = TwitchBot::Parse(std::u8string_view(buffer_data, buffer.size()));
+    auto message = IRC::Parse(std::u8string_view(buffer_data, buffer.size()));
     if (message) {
       auto &[command, tags, source, parameters] = message.value();
       switch (command.Kind) {
-      case TwitchBot::IRCCommand::PRIVMSG: {
-        auto commandParams = TwitchBot::ParseCommand<TwitchBot::IRCCommand::PRIVMSG>{}(message.value());
+      case IRC::IRCCommand::PRIVMSG: {
+        auto commandParams = IRC::ParseCommand<IRC::IRCCommand::PRIVMSG>{}(message.value());
         if (commandParams) {
           auto &privmsg                 = parameters.value();
           auto &[displayName, msgParts] = commandParams.value();
+
           std::cout << std::string_view(reinterpret_cast<const char *>(displayName.data()), displayName.size()) << ": "
                     << std::string_view(reinterpret_cast<const char *>(privmsg.data()), privmsg.size()) << '\n';
-          broadcaster->Send(Serialize(commandParams.value()));
+          if (msgParts.size() == 1 and std::holds_alternative<IRC::TextPart>(msgParts[0])) {
+            std::u8string_view text = std::get<IRC::TextPart>(msgParts[0]).Value;
+            if (text.starts_with(u8"!cpp ")) {
+              text.remove_prefix(5);
+              CommandResult result = botCommand->Handle(text);
+              std::cout << "!cpp: " << to_string_view(result.Message()) << "\n";
+            }
+          }
         }
-        break;
-      }
-      case TwitchBot::IRCCommand::PING: {
-        auto commandParams = TwitchBot::ParseCommand<TwitchBot::IRCCommand::PING>{}(parameters);
+        broadcaster->Send(Serialize(commandParams.value()));
+      } break;
+      case IRC::IRCCommand::PING: {
+        auto commandParams = IRC::ParseCommand<IRC::IRCCommand::PING>{}(parameters);
         if (commandParams) {
           auto &[payload] = commandParams.value();
           auto pong       = std::u8string(u8"PONG :").append(payload).append(u8"\r\n");
@@ -143,13 +159,16 @@ net::awaitable<void> do_session(
   // If we get here then the connection is closed gracefully
 }
 
+}// namespace TwitchBot
+
+
 //------------------------------------------------------------------------------
 int main()
 {
 
   constexpr static const std::u8string_view twitchJsonUtf8Path = u8"config/twitch.json";
-  auto connection                                              = TwitchBot::ReadTwitchBotConfig(twitchJsonUtf8Path);
-  if (not connection) {
+  auto twitchConfig                                            = TwitchBot::ReadTwitchBotConfig(twitchJsonUtf8Path);
+  if (not twitchConfig) {
     return EXIT_FAILURE;
   }
   constexpr static const std::u8string_view serverJsonUtf8Path = u8"config/server.json";
@@ -175,13 +194,14 @@ int main()
   LoadRootCertificates(ctx, ec);
 
   // Launch the asynchronous operation
-  net::co_spawn(ioc, do_session(std::move(*connection), ctx, broadcaster), [](std::exception_ptr e) {
-    if (e) try {
-        std::rethrow_exception(e);
-      } catch (std::exception &ex) {
-        std::cerr << "Error: " << ex.what() << "\n";
-      }
-  });
+  net::co_spawn(
+    ioc, TwitchBot::do_session(std::move(*twitchConfig), ctx, broadcaster), [](std::exception_ptr e) {
+      if (e) try {
+          std::rethrow_exception(e);
+        } catch (std::exception &ex) {
+          std::cerr << "Error: " << ex.what() << "\n";
+        }
+    });
 
   // Run the I/O service. The call will return when
   // the socket is closed.

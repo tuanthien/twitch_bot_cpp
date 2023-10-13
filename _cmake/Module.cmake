@@ -12,6 +12,10 @@ target_sources(${MODULE_NAME} PRIVATE
   Source/TwitchBotConfig.cpp
   Source/MessageSerializer.hpp
   Source/MessageSerializer.cpp
+  Source/Command.hpp
+  Source/Command.cpp
+  Source/Commands/CppFormat.hpp
+  Source/Commands/CppFormat.cpp
   Source/TwitchBot.hpp
   Source/TwitchBot.cpp
 )
@@ -22,6 +26,9 @@ add_subdirectory(Modules/ChatServer)
 
 target_link_libraries(
   ${MODULE_NAME} 
+  PUBLIC
+  Boost::program_options
+
   PRIVATE
   TwitchIRCParser
   ChatServer
@@ -33,7 +40,7 @@ target_link_libraries(
   Boost::asio
   Boost::beast
   Boost::json
-  #Boost::program_options
+  Boost::process
   "$<BUILD_INTERFACE:${PROJECT_WARNINGS_TARGET}>" 
   "$<BUILD_INTERFACE:${PROJECT_OPTIONS_TARGET}>" 
 )
