@@ -16,6 +16,8 @@ target_sources(${MODULE_NAME} PRIVATE
   Source/Command.cpp
   Source/Commands/CppFormat.hpp
   Source/Commands/CppFormat.cpp
+  Source/Commands/CppFormatMessage.cpp
+  Source/Commands/CppFormatMessage.hpp
   Source/TwitchBot.hpp
   Source/TwitchBot.cpp
 )
@@ -23,6 +25,8 @@ target_sources(${MODULE_NAME} PRIVATE
 include(_cmake/Dependencies.cmake)
 add_subdirectory(Modules/TwitchIRCParser)
 add_subdirectory(Modules/ChatServer)
+
+target_compile_definitions(${MODULE_NAME} PUBLIC BOOST_ASIO_HAS_IO_URING BOOST_ASIO_DISABLE_EPOLL BOOST_ASIO_HAS_IO_URING_AS_DEFAULT)
 
 target_link_libraries(
   ${MODULE_NAME} 
@@ -41,6 +45,7 @@ target_link_libraries(
   Boost::beast
   Boost::json
   Boost::process
+  uring
   "$<BUILD_INTERFACE:${PROJECT_WARNINGS_TARGET}>" 
   "$<BUILD_INTERFACE:${PROJECT_OPTIONS_TARGET}>" 
 )

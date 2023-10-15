@@ -2,19 +2,24 @@
 
 #include <string>
 #include <string_view>
-#include "Command.hpp"
+#include <optional>
+#include <memory>
 
+#include "Command.hpp"
+#include <boost/asio/awaitable.hpp>
 
 namespace TwitchBot {
 
-class CppFormat : public Command
+struct Broadcaster;
+
+struct CppFormat : public Command
 {
 public:
-  CppFormat();
-  auto Handle(std::u8string_view command) -> CommandResult override;
+  CppFormat(const std::shared_ptr<Broadcaster>& broadcaster);
+  auto Handle(const IRC::CommandParameters<IRC::IRCCommand::PRIVMSG>& command, void *userData) -> boost::asio::awaitable<std::optional<CommandResult>> override;
   auto HelpString() -> std::u8string_view override;
 private:
-
+  std::shared_ptr<Broadcaster> broadcaster_;
 };
 
 }

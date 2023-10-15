@@ -48,7 +48,10 @@ const container = document.querySelector('#container');
 const offscreenRegion = document.querySelector('#offscreen-region');
 
 async function pushMessage(parsedMessage, timeout) {
-  if(parsedMessage.id !== 1) { return; }
+  if(parsedMessage.kind !== 1) { 
+    console.log(parsedMessage);
+    return; 
+  }
   const msgParts = parsedMessage.message.parts;
   const displayName = parsedMessage.message.display_name;
 

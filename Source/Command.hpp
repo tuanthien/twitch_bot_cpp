@@ -1,8 +1,18 @@
 #pragma once
 #include <string>
+#include <optional>
 #include "SystemMessageType.hpp"
+#include <boost/asio/awaitable.hpp>
+#include <boost/asio/io_context.hpp>
+#include "TwitchIRCParser.hpp"
 
 namespace TwitchBot {
+
+enum struct CommandMessageKind {
+  Generic,
+  CppFormatState
+};
+
 struct CommandResult
 {
 public:
@@ -19,7 +29,7 @@ protected:
 struct Command
 {
 public:
-  virtual auto Handle(std::u8string_view command) -> CommandResult = 0;
+  virtual auto Handle(const IRC::CommandParameters<IRC::IRCCommand::PRIVMSG>& command, void* userData) -> boost::asio::awaitable<std::optional<CommandResult>> = 0;
   virtual auto HelpString() -> std::u8string_view = 0;
 };
 }// namespace TwitchBot

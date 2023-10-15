@@ -1,18 +1,18 @@
 #include "MessageSerializer.hpp"
 #include "Conversion.hpp"
 #include <boost/json.hpp>
+#include "Command.hpp"
 
 namespace TwitchBot {
 
-auto Serialize(const IRC::CommandParameters<IRC::IRCCommand::PRIVMSG> &parameters) -> std::string
+auto Serialize(const IRC::CommandParameters<IRC::IRCCommand::PRIVMSG> &parameters, int64_t serializeId) -> std::string
 {
   namespace json = boost::json;
   json::object obj;
-  obj["id"] = json::value(static_cast<int64_t>(IRC::IRCCommand::PRIVMSG));
 
-  json::object message;
-  message["display_name"] = json::value(to_string_view(parameters.DisplayName));
+  obj["kind"] = json::value(static_cast<int64_t>(CommandMessageKind::Generic));
 
+  json::object data;
   json::array parts;
   for (const auto &part : parameters.Parts) {
     parts.push_back(std::visit(
@@ -31,9 +31,10 @@ auto Serialize(const IRC::CommandParameters<IRC::IRCCommand::PRIVMSG> &parameter
         }},
       part));
   }
-
-  message["parts"] = std::move(parts);
-  obj["message"]   = std::move(message);
+  data["id"] = json::value(static_cast<int64_t>(serializeId));
+  data["display_name"] = json::value(to_string_view(parameters.DisplayName));
+  data["parts"] = std::move(parts);
+  obj["data"]   = std::move(data);
 
   return json::serialize(obj);
 }

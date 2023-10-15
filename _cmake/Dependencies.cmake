@@ -3,6 +3,9 @@ include(_cmake/CPMPackageManager.cmake)
 # OpenSSL
 find_package(OpenSSL REQUIRED COMPONENTS SSL)
 
+set(BOOST_ASIO_HAS_IO_URING ON)
+set(BOOST_ASIO_DISABLE_EPOLL ON)
+set(BOOST_ASIO_HAS_IO_URING_AS_DEFAULT ON)
 # Boost
 CPMAddPackage(
   NAME Boost
@@ -17,7 +20,10 @@ CPMAddPackage(
   "BOOST_ENABLE_PYTHON OFF"
   "CMAKE_BUILD_TYPE Release"
   "BUILD_SHARED_LIBS ON"
-  FIND_PACKAGE_ARGUMENTS "COMPONENTS program_options beast asio lockfree"
+  "BOOST_ASIO_HAS_IO_URING ON"
+  "BOOST_ASIO_DISABLE_EPOLL ON"
+  "BOOST_ASIO_HAS_IO_URING_AS_DEFAULT ON"
+  FIND_PACKAGE_ARGUMENTS "COMPONENTS program_options beast asio lockfree atomic lockfree program_options json process"
   SYSTEM YES
   EXCLUDE_FROM_ALL YES
 )

@@ -33,7 +33,7 @@ private:
   void onWrite(beast::error_code ec, std::size_t bytes_transferred);
   void onSend();
   void onRequestStop();
-
+  bool writing_ = false;
 public:
   WebSocketSession(tcp::socket &&socket, const std::shared_ptr<Broadcaster> &broadcaster);
 
