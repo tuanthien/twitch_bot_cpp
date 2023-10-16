@@ -1,5 +1,5 @@
 :root {
-  --container-width: 400px;
+  --container-width: 420px;
   --container-height: 700px;
   --container-padding: 10px;
   --container-inactive-row-gap: 10px;
@@ -123,41 +123,54 @@ body::-webkit-scrollbar {
   height: auto;
 }
 
-.message > .display-name {
+.message>.display-name {
   color: rgb(0, 93, 146);
   margin: 3px;
   font: 12px;
 }
 
-.message > .message-content {
+.message>.message-content {
   margin: 5px;
   font-size: 16px;
 }
 
-.message > .extra > .handlers {
-  height: 15px;
-  max-height: 15px;
+.message>.extra>.handlers {
+  height: 22px;
+  max-height: 22px;
 }
 
-.message > .extra > .handlers > .cpp {
+.message[data-handlers~='cpp']>.message-content {
+  font-family: monospace;
+  font-size: 12px;
+}
+
+.message[data-handlers~='cpp']>.message-content>pre {
+  margin: 0;
+}
+
+.message[data-handlers~='cpp']>.extra>.handlers>.cpp>.name {
   font-size: 10px;
   padding: 2px 5px;
-  background-color: rgba(224, 224, 224, 0.822);
-  border-radius: 3px;
+  background-color: rgba(13, 227, 255, 0.822);
+  border-radius: 8px;
 }
-.message[data-cpp-state='0'] > .extra > .handlers > .cpp > .name { 
+
+.message[data-cpp-state='0']>.extra>.handlers>.cpp>.name {
   background-color: rgba(60, 255, 0, 0.5);
 }
-.message[data-cpp-state='0'] > .extra > .handlers > .cpp > .name::before { 
+
+.message[data-cpp-state='0']>.extra>.handlers>.cpp>.name::before {
   content: '✔'
 }
-.message[data-cpp-state='1'] > .extra > .handlers > .cpp > .name { 
+
+.message[data-cpp-state='1']>.extra>.handlers>.cpp>.name {
   background-color: rgba(255, 0, 0, 0.5);
 }
-.message[data-cpp-state='1'] > .extra > .handlers > .cpp > .name::before { 
+
+.message[data-cpp-state='1']>.extra>.handlers>.cpp>.name::before {
   content: '❌'
 }
 
-.message > .extra > .handlers > .cpp > .state {
+.message>.extra>.handlers>.cpp>.state {
   display: none;
 }

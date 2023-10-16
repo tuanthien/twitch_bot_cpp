@@ -51,10 +51,11 @@ namespace TwitchBot {
 //   std::cout << "Command error: " << e.what() << std::endl;
 // }
 
-CppFormat::CppFormat(const std::shared_ptr<Broadcaster> &broadcaster)
-  : broadcaster_(broadcaster)
+CppFormat::CppFormat(const std::shared_ptr<Broadcaster> &broadcaster, const BotCommandCppConfig& config)
+  : broadcaster_(broadcaster),
+  config_(&config)
 {
-  // initialize();
+
 }
 
 namespace proc = boost::process::v2;
@@ -72,7 +73,9 @@ auto CppFormat::Handle(const IRC::CommandParameters<IRC::IRCCommand::PRIVMSG> &c
   std::u8string_view chatText = std::get<IRC::TextPart>(msgParts[0]).Value;
   chatText.remove_prefix(5);
   std::string fileName = fmt::format("{}.cpp", commandIndx);
-
+  auto filePath = config_->cppTempPath / fileName;
+  fileName = filePath.string();
+  auto styleFile = fmt::format("--style=file:{}", config_->clangFormatConfigPath.string());
   /** // Beast doesn't like having epoll disabled, Process doesn't like io uring enable without epoll disabled
    *  // temporary solution, use sync file io, =.=!
      auto file = asio::stream_file(
@@ -88,9 +91,9 @@ auto CppFormat::Handle(const IRC::CommandParameters<IRC::IRCCommand::PRIVMSG> &c
       co_return std::nullopt;
     }
   */
-  asio::steady_timer delay{co_await asio::this_coro::executor, std::chrono::seconds(1)};
-  
-  co_await delay.async_wait(asio::use_awaitable);
+
+  // asio::steady_timer delay{co_await asio::this_coro::executor, std::chrono::seconds(1)};
+  // co_await delay.async_wait(asio::use_awaitable);
 
   auto writeStream = std::ofstream(fileName, std::ios::out | std::ios::binary | std::ios::trunc);
   if(writeStream.is_open()){
@@ -99,7 +102,7 @@ auto CppFormat::Handle(const IRC::CommandParameters<IRC::IRCCommand::PRIVMSG> &c
   }
   writeStream.close();
 
-  asio::steady_timer timeout{co_await asio::this_coro::executor, std::chrono::milliseconds(1000)};
+  asio::steady_timer timeout{co_await asio::this_coro::executor, config_->timeout};
   asio::cancellation_signal sig;
   std::u8string buffer;
   asio::readable_pipe formatOut(co_await asio::this_coro::executor);
@@ -118,7 +121,7 @@ auto CppFormat::Handle(const IRC::CommandParameters<IRC::IRCCommand::PRIVMSG> &c
         proc::process(
           co_await asio::this_coro::executor,
           "/usr/bin/clang-format",
-          {"--style=GNU", fileName},
+          {styleFile, fileName},
           proc::process_stdio{nullptr, formatOut, {}}
         ),
         asio::bind_cancellation_slot(sig.slot(),asio::as_tuple(asio::use_awaitable))
@@ -136,9 +139,18 @@ auto CppFormat::Handle(const IRC::CommandParameters<IRC::IRCCommand::PRIVMSG> &c
   } else if (const auto readResult = std::get_if<1>(&result)) {
     timeout.cancel();
     sig.emit(asio::cancellation_type::terminal);
+    auto [ec, size] = *readResult;
+    if(ec != boost::asio::error::misc_errors::eof) {
+      broadcaster_->Send(Serializer<CppFormatState::Error>{}.Serialize(commandIndx, ec.message()));
+    }
   } else if (const auto timeoutResult = std::get_if<2>(&result)) {
     auto [timeoutError] = *timeoutResult;
-    if (timeoutError == boost::system::errc::success) sig.emit(asio::cancellation_type::terminal);
+    if (timeoutError == boost::system::errc::success) {
+      sig.emit(asio::cancellation_type::terminal);
+      broadcaster_->Send(Serializer<CppFormatState::Timeout>{}.Serialize(commandIndx));
+    } else {
+      broadcaster_->Send(Serializer<CppFormatState::Error>{}.Serialize(commandIndx, timeoutError.message()));
+    }
   }
   co_return std::nullopt;
 }

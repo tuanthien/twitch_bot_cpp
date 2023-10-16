@@ -1,15 +1,3 @@
-
-
-var words = ['apple', 'beer', 'cake', 'potato', 'orange', 'Got', 'ability', 'shop', 'recall', 'fruit', 'easy', 'dirty', 'giant', 'shaking', 'ground', 'weather', 'lesson', 'almost', 'square', 'forward', 'bend', 'cold', 'broken', 'distant', 'adjective'];
-
-function randomWords() {
-  let t = '';
-  for (i = 0; i < Math.random() * 100; i++) {
-    t += ' ' + words[Math.floor(Math.random() * words.length)];
-  }
-  return t;
-}
-
 const computedStyle = getComputedStyle(document.querySelector(':root'));
 
 const fadeInDuration = parseFloat(
@@ -223,9 +211,13 @@ ws.onopen = () => {
 }
 ws.onmessage = (msg) => {
   console.log('Message: ', msg.data);
-  message = JSON.parse(msg.data);
-  container.dataset.messageCount++;
-  pushMessage(message, messageTimeout);
+  const message = JSON.parse(msg.data);
+  setTimeout(() => {
+    container.dataset.messageCount++;
+    
+    pushMessage(message, messageTimeout);
+  }, pushingDelay * 1000);
+
 }
 
 ws.onclose = (msg) => {

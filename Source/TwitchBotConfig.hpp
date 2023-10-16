@@ -14,16 +14,18 @@ struct TwitchChatConnection
   std::string Channel;
   std::string Nick;
 };
-
 struct BotCommandCppConfig
 {
   std::filesystem::path clangFormatPath;
+  std::filesystem::path clangFormatConfigPath;
+  std::filesystem::path cppTempPath;
+  std::chrono::milliseconds timeout;
 };
 
 struct TwitchBotConfig
 {
   TwitchChatConnection Connection;
-  BotCommandCppConfig CppConfig;
+  std::optional<BotCommandCppConfig> CppConfig;
 };
 
 

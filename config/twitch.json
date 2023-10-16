@@ -6,8 +6,9 @@
   "commands": {
     "cpp": { 
       "clang_format_path": "/usr/bin/clang-format",
-      "source_temp": "cache/cpp",
-      "timeout_in_milis": 1000
+      "clang_format_config_path": "config/.clang-format",
+      "cpp_temp_Path": "tmp/cpp",
+      "timeout_in_millis": 1000
     }
   }
 }

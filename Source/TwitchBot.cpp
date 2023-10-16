@@ -40,6 +40,7 @@ namespace asio             = boost::asio;// from <boost/asio.hpp>
 namespace ssl              = boost::asio::ssl;// from <boost/asio/ssl.hpp>
 using tcp                  = boost::asio::ip::tcp;// from <boost/asio/ip/tcp.hpp>
 using tcp_resolver_results = typename tcp::resolver::results_type;
+using flat_u8buffer = beast::basic_flat_buffer<std::allocator<char8_t>>;
 
 // Report a failure
 void fail(beast::error_code ec, char const *what)
@@ -48,7 +49,7 @@ void fail(beast::error_code ec, char const *what)
 }
 
 auto botCommandHandler(
-  std::unique_ptr<Command> command, IRC::CommandParameters<IRC::IRCCommand::PRIVMSG> message, void *userData)
+  std::unique_ptr<Command> command, [[maybe_unused]] flat_u8buffer buffer, IRC::CommandParameters<IRC::IRCCommand::PRIVMSG> message, void *userData)
   -> net::awaitable<std::pair<bool, void *>>
 {
   std::optional<CommandResult> result = co_await command->Handle(message, userData);
@@ -110,9 +111,7 @@ net::awaitable<void> do_session(
   // Perform the websocket handshake
   co_await ws.async_handshake(host, "/");
 
-  // This buffer will hold the incoming message
-  using flat_u8buffer = beast::basic_flat_buffer<std::allocator<char8_t>>;
-  flat_u8buffer buffer;
+  
 
   // twitch.tv/membership twitch.tv/tags
   co_await ws.async_write(net::buffer("CAP REQ :twitch.tv/tags twitch.tv/commands\r\n"));
@@ -121,6 +120,8 @@ net::awaitable<void> do_session(
   intptr_t commandIndx = 0;
 
   while (true) {
+  // This buffer will hold the incoming message
+    flat_u8buffer buffer;
     // Read a message into our buffer
     co_await ws.async_read(buffer);
     auto buffer_data = reinterpret_cast<const char8_t *>(buffer.cdata().data());
@@ -140,13 +141,14 @@ net::awaitable<void> do_session(
 
           bool handled = false;
           if (msgParts.size() == 1 and std::holds_alternative<IRC::TextPart>(msgParts[0])) {
+
             std::u8string_view chatText = std::get<IRC::TextPart>(msgParts[0]).Value;
-            if (chatText.starts_with(u8"!cpp ")) {
-              std::unique_ptr<Command> botCommand = std::make_unique<CppFormat>(broadcaster);
+            if (config.CppConfig and chatText.starts_with(u8"!cpp ")) {
+              std::unique_ptr<Command> botCommand = std::make_unique<CppFormat>(broadcaster, *(config.CppConfig));
               net::co_spawn(
                 ioc,
                 botCommandHandler(
-                  std::move(botCommand), std::move(*commandParams), reinterpret_cast<void *>(++commandIndx)),
+                  std::move(botCommand), std::move(buffer), std::move(*commandParams), reinterpret_cast<void *>(++commandIndx)),
                 [](std::exception_ptr e, std::pair<bool, void *> result) { auto [success, userData] = result; });
               handled = true;
             } else {

@@ -8,9 +8,53 @@
 
 namespace TwitchBot {
 
+namespace json = simdjson;
+
+static auto readBotCommandCppConfig(json::ondemand::object &commands) -> std::optional<TwitchBot::BotCommandCppConfig>
+{
+  json::ondemand::object cpp;
+  auto error = commands["cpp"].get_object().get(cpp);
+  if (error) {
+    fmt::print("Error: cpp field is not a object");
+    return std::nullopt;
+  }
+
+  std::string_view clangFormatPath;
+  error = cpp["clang_format_path"].get_string().get(clangFormatPath);
+  if (error) {
+    fmt::print("Error: clang_format_path field is not a string");
+    return std::nullopt;
+  }
+
+  std::string_view clangFormatConfigPath;
+  error = cpp["clang_format_config_path"].get_string().get(clangFormatConfigPath);
+  if (error) {
+    fmt::print("Error: clang_format_config_path field is not a string");
+    return std::nullopt;
+  }
+
+  std::string_view cppTempPath;
+  error = cpp["cpp_temp_Path"].get_string().get(cppTempPath);
+  if (error) {
+    fmt::print("Error: cpp_temp_Path field is not a string");
+    return std::nullopt;
+  }
+
+  int64_t timeoutMillis;
+  error = cpp["timeout_in_millis"].get_int64().get(timeoutMillis);
+  if (error) {
+    fmt::print("Error: timeout_in_millis field is not int64");
+    return std::nullopt;
+  }
+  return BotCommandCppConfig{
+    std::filesystem::path(clangFormatPath),
+    std::filesystem::path(clangFormatConfigPath),
+    std::filesystem::path(cppTempPath),
+    std::chrono::milliseconds(timeoutMillis)};
+}
+
 auto ReadTwitchBotConfig(std::u8string_view path) -> std::optional<TwitchBotConfig>
 {
-  namespace json = simdjson;
 
   auto twitchJsonFilePath = std::string_view(reinterpret_cast<const char *>(path.data()), path.size());
 
@@ -70,24 +114,10 @@ auto ReadTwitchBotConfig(std::u8string_view path) -> std::optional<TwitchBotConf
     return std::nullopt;
   }
 
-  json::ondemand::object cpp;
-  error = commands["cpp"].get_object().get(cpp);
-  if (error) {
-    fmt::print("Error: cpp field is not a object");
-    return std::nullopt;
-  }
-
-  std::string_view clangFormatPath;
-  error = cpp["clang_format_path"].get_string().get(clangFormatPath);
-  if (error) {
-    fmt::print("Error: clang_format_path field is not a string");
-    return std::nullopt;
-  }
-
 
   return TwitchBotConfig{
     TwitchChatConnection{std::string(host), port, std::string(channel), std::string(nick)},
-    BotCommandCppConfig{std::filesystem::path(clangFormatPath)}};
+    readBotCommandCppConfig(commands)};
 }
 
 }// namespace TwitchBot

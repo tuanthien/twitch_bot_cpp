@@ -26,7 +26,7 @@ struct Serializer<CppFormatState::Success>
 template<>
 struct Serializer<CppFormatState::Error>
 {
-  auto Serialize(int64_t refId, std::u8string_view formatted) -> std::string;
+  auto Serialize(int64_t refId, std::string_view message) -> std::string;
 };
 
 template<>
@@ -35,4 +35,9 @@ struct Serializer<CppFormatState::Formatting>
   auto Serialize(int64_t refId) -> std::string;
 };
 
+template<>
+struct Serializer<CppFormatState::Timeout>
+{
+  auto Serialize(int64_t refId) -> std::string;
+};
 }// namespace TwitchBot
