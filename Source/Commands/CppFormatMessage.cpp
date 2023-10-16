@@ -33,27 +33,17 @@ auto Serializer<CppFormatState::Error>::Serialize(int64_t refId, std::u8string_v
 }
 
 
-static auto serialize(CppFormatState state, int64_t refId)->std::string
+auto Serializer<CppFormatState::Formatting>::Serialize(int64_t refId) -> std::string
 {
   namespace json = boost::json;
   json::object obj;
   json::object data;
   obj["kind"]    = json::value(static_cast<int64_t>(CommandMessageKind::CppFormatState));
-  data["state"]  = json::value(static_cast<int64_t>(state));
+  data["state"]  = json::value(static_cast<int64_t>(CppFormatState::Formatting));
   data["ref_id"] = json::value(refId);
   obj["data"]    = std::move(data);
   return json::serialize(obj);
 }
 
-
-auto Serializer<CppFormatState::WritingFile>::Serialize(int64_t refId) -> std::string
-{
-  return serialize(CppFormatState::WritingFile, refId);
-}
-
-auto Serializer<CppFormatState::LaunchingFormatter>::Serialize(int64_t refId) -> std::string
-{
-  return serialize(CppFormatState::LaunchingFormatter, refId);
-}
 
 }// namespace TwitchBot

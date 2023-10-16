@@ -3,16 +3,16 @@
 // #include <boost/program_options.hpp>
 #include <boost/asio.hpp>
 #include "boost/asio/experimental/awaitable_operators.hpp"
-// #include <boost/asio/as_tuple.hpp>
-// #include <boost/asio/use_awaitable.hpp>
-// #include <boost/asio/stream_file.hpp>
-// #include <boost/asio/readable_pipe.hpp>
+#include <boost/asio/as_tuple.hpp>
+#include <boost/asio/use_awaitable.hpp>
+#include <boost/asio/readable_pipe.hpp>
 #include <boost/process/v2.hpp>
 #include "Conversion.hpp"
 #include <fmt/format.h>
 #include "Broadcaster.hpp"
 #include "CppFormatMessage.hpp"
 #include "MessageSerializer.hpp"
+#include <fstream>
 
 namespace TwitchBot {
 
@@ -67,67 +67,79 @@ auto CppFormat::Handle(const IRC::CommandParameters<IRC::IRCCommand::PRIVMSG> &c
   auto &[displayName, msgParts] = command;
 
   auto commandIndx = std::bit_cast<intptr_t>(userData);
-  broadcaster_->Send(Serialize(command, commandIndx));
-  broadcaster_->Send(Serializer<CppFormatState::WritingFile>{}.Serialize(commandIndx));
+  broadcaster_->Send(Serialize(command, commandIndx, true));
+  broadcaster_->Send(Serializer<CppFormatState::Formatting>{}.Serialize(commandIndx));
   std::u8string_view chatText = std::get<IRC::TextPart>(msgParts[0]).Value;
   chatText.remove_prefix(5);
   std::string fileName = fmt::format("{}.cpp", commandIndx);
 
-  auto file = asio::stream_file(
-    co_await asio::this_coro::executor,
-    fileName,
-    asio::stream_file::write_only | asio::stream_file::create | asio::stream_file::truncate);
+  /** // Beast doesn't like having epoll disabled, Process doesn't like io uring enable without epoll disabled
+   *  // temporary solution, use sync file io, =.=!
+     auto file = asio::stream_file(
+      co_await asio::this_coro::executor,
+      fileName,
+      asio::stream_file::write_only | asio::stream_file::create | asio::stream_file::truncate);
 
-  auto [e, size] = co_await file.async_write_some(asio::buffer(chatText), asio::as_tuple(asio::use_awaitable));
-  file.cancel();
-  file.close();
-  co_await asio::this_coro::reset_cancellation_state();
-  if (e) {
-    co_return std::nullopt;
+    auto [e, size] = co_await file.async_write_some(asio::buffer(chatText), asio::as_tuple(asio::use_awaitable));
+    file.cancel();
+    file.close();
+    co_await asio::this_coro::reset_cancellation_state();
+    if (e) {
+      co_return std::nullopt;
+    }
+  */
+  asio::steady_timer delay{co_await asio::this_coro::executor, std::chrono::seconds(1)};
+  
+  co_await delay.async_wait(asio::use_awaitable);
+
+  auto writeStream = std::ofstream(fileName, std::ios::out | std::ios::binary | std::ios::trunc);
+  if(writeStream.is_open()){
+    std::string_view buffer = to_string_view(chatText);
+    writeStream.write(buffer.data(), buffer.size());
   }
+  writeStream.close();
 
-  broadcaster_->Send(Serializer<CppFormatState::LaunchingFormatter>{}.Serialize(commandIndx));
-  // asio::steady_timer timeout{co_await asio::this_coro::executor, std::chrono::milliseconds(1000)};
-  // asio::cancellation_signal sig;
-  // std::u8string buffer;
-  // asio::readable_pipe formatOut(co_await asio::this_coro::executor);
+  asio::steady_timer timeout{co_await asio::this_coro::executor, std::chrono::milliseconds(1000)};
+  asio::cancellation_signal sig;
+  std::u8string buffer;
+  asio::readable_pipe formatOut(co_await asio::this_coro::executor);
 
-  // using namespace boost::asio::experimental::awaitable_operators;
-  // // clang-format off
-  //   using result_type =
-  //     std::variant<
-  //       std::tuple<boost::system::error_code, int>,
-  //       std::tuple<boost::system::error_code, unsigned long>,
-  //       std::tuple<boost::system::error_code>
-  //     >;
+  using namespace boost::asio::experimental::awaitable_operators;
+  // clang-format off
+    using result_type =
+      std::variant<
+        std::tuple<boost::system::error_code, int>,
+        std::tuple<boost::system::error_code, unsigned long>,
+        std::tuple<boost::system::error_code>
+      >;
 
-  //   result_type result = co_await (
-  //     proc::async_execute(
-  //       proc::process(
-  //         co_await asio::this_coro::executor,
-  //         "/usr/bin/clang-format",
-  //         {"--style=GNU", "test.cpp"},
-  //         proc::process_stdio{nullptr, formatOut, {}}
-  //       ),
-  //       asio::bind_cancellation_slot(sig.slot(),asio::as_tuple(asio::use_awaitable))
-  //     )
-  //     || asio::async_read(formatOut, asio::dynamic_buffer(buffer, 1024), asio::as_tuple(asio::use_awaitable))
-  //     || timeout.async_wait(asio::as_tuple(asio::use_awaitable)));
-  // // clang-format on
+    result_type result = co_await (
+      proc::async_execute(
+        proc::process(
+          co_await asio::this_coro::executor,
+          "/usr/bin/clang-format",
+          {"--style=GNU", fileName},
+          proc::process_stdio{nullptr, formatOut, {}}
+        ),
+        asio::bind_cancellation_slot(sig.slot(),asio::as_tuple(asio::use_awaitable))
+      )
+      || asio::async_read(formatOut, asio::dynamic_buffer(buffer, 1024), asio::as_tuple(asio::use_awaitable))
+      || timeout.async_wait(asio::as_tuple(asio::use_awaitable)));
+  // clang-format on
 
-  // if (const auto processResult = std::get_if<0>(&result)) {
-  //   timeout.cancel();
-  //   auto [ec, exitCode] = *processResult;
-  //   if (ec == boost::system::errc::success && exitCode == 0) {
-  //     fmt::print("Success {}\n", to_string_view(buffer));
-  //   }
-  // } else if (const auto readResult = std::get_if<1>(&result)) {
-  //   timeout.cancel();
-  //   sig.emit(asio::cancellation_type::terminal);
-  // } else if (const auto timeoutResult = std::get_if<2>(&result)) {
-  //   auto [timeoutError] = *timeoutResult;
-  //   if (timeoutError == boost::system::errc::success) sig.emit(asio::cancellation_type::terminal);
-  // }
+  if (const auto processResult = std::get_if<0>(&result)) {
+    timeout.cancel();
+    auto [ec, exitCode] = *processResult;
+    if (ec == boost::system::errc::success && exitCode == 0) {
+      broadcaster_->Send(Serializer<CppFormatState::Success>{}.Serialize(commandIndx, buffer));
+    }
+  } else if (const auto readResult = std::get_if<1>(&result)) {
+    timeout.cancel();
+    sig.emit(asio::cancellation_type::terminal);
+  } else if (const auto timeoutResult = std::get_if<2>(&result)) {
+    auto [timeoutError] = *timeoutResult;
+    if (timeoutError == boost::system::errc::success) sig.emit(asio::cancellation_type::terminal);
+  }
   co_return std::nullopt;
 }
 

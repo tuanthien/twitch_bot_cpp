@@ -5,7 +5,7 @@
 
 namespace TwitchBot {
 
-auto Serialize(const IRC::CommandParameters<IRC::IRCCommand::PRIVMSG> &parameters, int64_t serializeId) -> std::string
+auto Serialize(const IRC::CommandParameters<IRC::IRCCommand::PRIVMSG> &parameters, int64_t serializeId, bool modified) -> std::string
 {
   namespace json = boost::json;
   json::object obj;
@@ -34,6 +34,7 @@ auto Serialize(const IRC::CommandParameters<IRC::IRCCommand::PRIVMSG> &parameter
   data["id"] = json::value(static_cast<int64_t>(serializeId));
   data["display_name"] = json::value(to_string_view(parameters.DisplayName));
   data["parts"] = std::move(parts);
+  data["modified"] = json::value(modified);
   obj["data"]   = std::move(data);
 
   return json::serialize(obj);

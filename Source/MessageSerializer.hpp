@@ -10,6 +10,6 @@ template<class... Ts>
 struct overloaded : Ts... { using Ts::operator()...; };
 
 
-auto Serialize(const IRC::CommandParameters<IRC::IRCCommand::PRIVMSG> &parameters, int64_t serializeId) -> std::string;
+auto Serialize(const IRC::CommandParameters<IRC::IRCCommand::PRIVMSG> &parameters, int64_t serializeId, bool modified = false) -> std::string;
 
 }

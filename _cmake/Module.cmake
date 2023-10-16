@@ -26,7 +26,12 @@ include(_cmake/Dependencies.cmake)
 add_subdirectory(Modules/TwitchIRCParser)
 add_subdirectory(Modules/ChatServer)
 
-target_compile_definitions(${MODULE_NAME} PUBLIC BOOST_ASIO_HAS_IO_URING BOOST_ASIO_DISABLE_EPOLL BOOST_ASIO_HAS_IO_URING_AS_DEFAULT)
+target_compile_definitions(${MODULE_NAME} 
+  PUBLIC 
+  #BOOST_ASIO_HAS_IO_URING
+  #BOOST_ASIO_DISABLE_EPOLL
+  #BOOST_ASIO_HAS_IO_URING_AS_DEFAULT
+)
 
 target_link_libraries(
   ${MODULE_NAME} 

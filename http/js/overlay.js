@@ -47,13 +47,15 @@ const inactive = document.querySelector('#container-inactive');
 const container = document.querySelector('#container');
 const offscreenRegion = document.querySelector('#offscreen-region');
 
-async function pushMessage(parsedMessage, timeout) {
-  if(parsedMessage.kind !== 1) { 
-    console.log(parsedMessage);
-    return; 
-  }
-  const msgParts = parsedMessage.message.parts;
-  const displayName = parsedMessage.message.display_name;
+
+async function displayGenericMessage(data, timeout) {
+  const msgParts = data.parts;
+  const displayName = data.display_name;
+  const id = data.id;
+  const modified = data.modified;
+
+  const extra = document.createElement("div")
+  extra.classList.add('extra');
 
   const name = document.createElement("div")
   name.classList.add('display-name');
@@ -76,12 +78,19 @@ async function pushMessage(parsedMessage, timeout) {
       }
     }
   }
-
+  if(modified) {
+    const handlersEle = document.createElement('div');
+    handlersEle.classList.add('handlers')
+    extra.append(handlersEle);
+  }
   // Create message HTML element
   const message = document.createElement('li');
+  message.append(extra);
   message.append(name);
   message.append(msg);
   message.classList.add('message');
+  
+  message.id = "message-" + id;
 
   // Add message element into offscreen-region
   offscreenRegion.append(message);
@@ -133,10 +142,77 @@ async function pushMessage(parsedMessage, timeout) {
   message.remove()
 }
 
+async function handleCppFormater(data) {
+  const refMessage = document.getElementById("message-" + data.ref_id);
+  refMessage.dataset.cppState = data.state;
+  switch (data.state) {
+    case 0: {
+      const contentEle = refMessage.querySelector('.message-content');
+      const formatedCodeEle = document.createElement('pre');
+      formatedCodeEle.innerText = data.formatted_code;
+      contentEle.innerHTML = "";
+      contentEle.append(formatedCodeEle);
+      if(refMessage.parentElement.id == 'container-inactive')
+        window.scrollTo(0, document.body.scrollHeight);
+      break;
+    }
+    case 1: {
+      const cppMsgEle = refMessage.querySelector('.extra > .handlers > .cpp > .message')
+      cppMsgEle.innerText = "Error";
+      break;
+    }
+    case 2: {
+      refMessage.classList.add('modified');
+
+      const handlersEle = refMessage.querySelector('.extra > .handlers');
+   
+      const handlerEle = document.createElement('div');
+      handlerEle.classList.add('cpp')
+
+      const handlerNameEle = document.createElement('span');
+      handlerNameEle.classList.add('name');
+      handlerNameEle.innerText = 'cpp';
+
+      const handlerStateEle = document.createElement('span');
+      handlerStateEle.classList.add('state');
+      handlerStateEle.innerText = 'Formating';
+
+      handlerEle.append(handlerNameEle, handlerStateEle);
+      handlersEle.append(handlerEle);
+      const handlers = (refMessage.dataset.handlers || "").split(' ');
+      handlers.push('cpp');
+      refMessage.dataset.handlers = handlers.join(' ');
+      break;
+    }
+    case 3: {
+      const cppMsgEle = refMessage.querySelector('.extra > .handlers > .cpp > .message')
+      cppMsgEle.innerText = "Timeout";
+    }
+  }
+}
+
+async function pushMessage(parsedMessage, timeout) {
+  switch (parsedMessage.kind) {
+    case 0: {
+      displayGenericMessage(parsedMessage.data, timeout);
+      break;
+    }
+    case 1: {
+      handleCppFormater(parsedMessage.data);
+      break;
+    }
+  }
+
+  if (parsedMessage.kind !== 0) {
+    return;
+  }
+
+}
+
 // minimum delay (+50ms) between messages necessary to not break animations
 const minimumDelay = fadeInDuration + pushUpDuration + 0.05;
 const pushingDelay = 0.5 + minimumDelay;
-const messageTimeout = 15.0;
+const messageTimeout = 100.0;
 container.dataset.messageCount = 0;
 container.dataset.messageMax = 20;
 
@@ -148,10 +224,8 @@ ws.onopen = () => {
 ws.onmessage = (msg) => {
   console.log('Message: ', msg.data);
   message = JSON.parse(msg.data);
-  setTimeout(() => {
-    container.dataset.messageCount++;
-    pushMessage(message, messageTimeout);
-  }, pushingDelay * 1000);
+  container.dataset.messageCount++;
+  pushMessage(message, messageTimeout);
 }
 
 ws.onclose = (msg) => {

@@ -5,10 +5,10 @@
 
 namespace TwitchBot {
 enum struct CppFormatState {
-  Success,
-  Error,
-  WritingFile,
-  LaunchingFormatter,
+  Success    = 0,
+  Error      = 1,
+  Formatting = 2,
+  Timeout    = 3,
 };
 
 template<CppFormatState State>
@@ -30,14 +30,9 @@ struct Serializer<CppFormatState::Error>
 };
 
 template<>
-struct Serializer<CppFormatState::WritingFile>
+struct Serializer<CppFormatState::Formatting>
 {
   auto Serialize(int64_t refId) -> std::string;
 };
 
-template<>
-struct Serializer<CppFormatState::LaunchingFormatter>
-{
-  auto Serialize(int64_t refId) -> std::string;
-};
 }// namespace TwitchBot
