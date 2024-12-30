@@ -1,25 +1,35 @@
 set(MODULE_NAME TwitchBotCpp)
 
-add_executable(${MODULE_NAME}
-)
+add_executable(${MODULE_NAME})
 
-target_sources(${MODULE_NAME} PRIVATE 
-  Source/Certificates.hpp
-  Source/Certificates.cpp
-  Source/ServerConfig.hpp
-  Source/ServerConfig.cpp
-  Source/TwitchBotConfig.hpp
-  Source/TwitchBotConfig.cpp
-  Source/MessageSerializer.hpp
-  Source/MessageSerializer.cpp
-  Source/Command.hpp
-  Source/Command.cpp
-  Source/Commands/CppFormat.hpp
-  Source/Commands/CppFormat.cpp
-  Source/Commands/CppFormatMessage.cpp
-  Source/Commands/CppFormatMessage.hpp
-  Source/TwitchBot.hpp
-  Source/TwitchBot.cpp
+target_sources(${MODULE_NAME} 
+  PUBLIC
+    FILE_SET HEADERS 
+    BASE_DIRS Source
+    FILES
+      $<$<PLATFORM_ID:Windows>:Source/Windows/PlatformInclude.hpp>
+      Source/CertificateStore.hpp
+      Source/ServerConfig.hpp
+      Source/TwitchBotConfig.hpp
+      Source/MessageSerializer.hpp
+      Source/Command.hpp
+      Source/Commands/CppFormat/CppFormat.hpp
+      Source/Commands/CppFormat/CppFormatMessage.hpp
+      Source/Commands/CommandList/CommandList.hpp
+      Source/Commands/CommandList/CommandListMessage.hpp
+      Source/TwitchBot.hpp
+
+  PRIVATE 
+    $<$<PLATFORM_ID:Windows>:Source/Windows/CertificateStore.cpp>
+    Source/ServerConfig.cpp
+    Source/TwitchBotConfig.cpp
+    Source/MessageSerializer.cpp
+    Source/Command.cpp
+    Source/Commands/CppFormat/CppFormat.cpp
+    Source/Commands/CppFormat/CppFormatMessage.cpp
+    Source/Commands/CommandList/CommandList.cpp
+    Source/Commands/CommandList/CommandListMessage.cpp
+    Source/TwitchBot.cpp
 )
 
 include(_cmake/Dependencies.cmake)
@@ -35,22 +45,29 @@ target_compile_definitions(${MODULE_NAME}
 
 target_link_libraries(
   ${MODULE_NAME} 
+ 
   PUBLIC
   Boost::program_options
-
+  Eao::Detail::ztd::text
+  
   PRIVATE
   TwitchIRCParser
   ChatServer
 
   fmt::fmt-header-only
   #spdlog::spdlog
-  simdjson::simdjson_static
-  OpenSSL::SSL
+  simdjson::simdjson
+  
+  ssl crypto
+    
   Boost::asio
   Boost::beast
   Boost::json
   Boost::process
-  uring
+
+  $<$<PLATFORM_ID:Linux>:uring>
+  $<$<PLATFORM_ID:Windows>:Crypt32.lib>
+  
   "$<BUILD_INTERFACE:${PROJECT_WARNINGS_TARGET}>" 
   "$<BUILD_INTERFACE:${PROJECT_OPTIONS_TARGET}>" 
 )
@@ -60,7 +77,7 @@ target_include_directories(
   PUBLIC
     $<BUILD_INTERFACE:${ROOT_INCLUDE_DIR}>
     $<BUILD_INTERFACE:${GENERATED_PROJECT_INCLUDE_DIR}>
-    $<BUILD_INTERFACE:${${PROJECT_NAME}_SOURCE_DIR}/Source>
+    $<BUILD_INTERFACE:${PROJECT_NAME_SOURCE_DIR}/Source>
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
 

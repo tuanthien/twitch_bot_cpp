@@ -1,0 +1,58 @@
+
+.message[data-handlers~='commands']>.message-content {
+  font-family: monospace;
+  font-size: 12px;
+}
+
+.message[data-handlers~='commands']>.message-content>pre {
+  margin: 0;
+}
+
+.message[data-handlers~='commands'] .extra>.handlers>.commands>.name {
+  font-size: 10px;
+  color: rgb(210, 210, 210);
+  padding: 2px 5px;
+  background-color: rgba(78, 78, 78, 0.822);
+  border-radius: 8px;
+}
+
+.message[data-commands-state='0'] .extra>.handlers>.commands>.name {
+  color: rgb(29, 29, 29);
+  background-color: rgba(60, 255, 0, 0.5);
+}
+
+.message[data-commands-state='0'] .extra>.handlers>.commands>.name::before {
+  content: '✔️ '
+}
+
+
+.message[data-commands-state='1'] .extra>.handlers>.commands>.name {
+  color: rgb(210, 210, 210);
+  background-color: rgba(255, 0, 0, 0.5);
+}
+
+.message[data-commands-state='1'] .extra>.handlers>.commands>.name::before {
+  content: '❌ '
+}
+
+.message[data-commands-state='2'] .extra>.handlers>.commands>.name::before {
+  content: '💬 '
+    /* @TODO make an animation for this */
+}
+
+.message[data-commands-state='3'] .extra>.handlers>.commands>.name {
+  color: rgb(210, 210, 210);
+  background-color: rgba(90, 0, 0, 0.5);
+  text-decoration: line-through;
+}
+
+.message[data-commands-state='3'] .extra>.handlers>.commands>.name::before {
+  content: '⏱️ '
+    /* @TODO make an icon that crack the clock */
+}
+
+
+
+.message .extra>.handlers>.commands>.state {
+  display: none;
+}

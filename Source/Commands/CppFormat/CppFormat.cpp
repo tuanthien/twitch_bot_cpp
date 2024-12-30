@@ -13,6 +13,8 @@
 #include "CppFormatMessage.hpp"
 #include "MessageSerializer.hpp"
 #include <fstream>
+#include <ztd/text.hpp>
+#include <ztd/text/wide_execution.hpp>
 
 namespace TwitchBot {
 
@@ -51,12 +53,10 @@ namespace TwitchBot {
 //   std::cout << "Command error: " << e.what() << std::endl;
 // }
 
-CppFormat::CppFormat(const std::shared_ptr<Broadcaster> &broadcaster, const BotCommandCppConfig& config)
-  : broadcaster_(broadcaster),
-  config_(&config)
-{
-
-}
+CppFormat::CppFormat(const std::shared_ptr<Broadcaster> &broadcaster, const BotCommandCppConfig &config)
+  : broadcaster_(broadcaster)
+  , config_(&config)
+{}
 
 namespace proc = boost::process::v2;
 namespace asio = boost::asio;
@@ -70,12 +70,13 @@ auto CppFormat::Handle(const IRC::CommandParameters<IRC::IRCCommand::PRIVMSG> &c
   auto commandIndx = std::bit_cast<intptr_t>(userData);
   broadcaster_->Send(Serialize(command, commandIndx, true));
   broadcaster_->Send(Serializer<CppFormatState::Formatting>{}.Serialize(commandIndx));
+
   std::u8string_view chatText = std::get<IRC::TextPart>(msgParts[0]).Value;
   chatText.remove_prefix(5);
   std::string fileName = fmt::format("{}.cpp", commandIndx);
-  auto filePath = config_->cppTempPath / fileName;
-  fileName = filePath.string();
-  auto styleFile = fmt::format("--style=file:{}", config_->clangFormatConfigPath.string());
+  auto filePath        = config_->cppTempPath / fileName;
+  fileName             = filePath.string();
+  auto styleFile       = fmt::format("--style=file:{}", config_->clangFormatConfigPath.string());
   /** // Beast doesn't like having epoll disabled, Process doesn't like io uring enable without epoll disabled
    *  // temporary solution, use sync file io, =.=!
      auto file = asio::stream_file(
@@ -96,7 +97,7 @@ auto CppFormat::Handle(const IRC::CommandParameters<IRC::IRCCommand::PRIVMSG> &c
   // co_await delay.async_wait(asio::use_awaitable);
 
   auto writeStream = std::ofstream(fileName, std::ios::out | std::ios::binary | std::ios::trunc);
-  if(writeStream.is_open()){
+  if (writeStream.is_open()) {
     std::string_view buffer = to_string_view(chatText);
     writeStream.write(buffer.data(), buffer.size());
   }
@@ -112,15 +113,35 @@ auto CppFormat::Handle(const IRC::CommandParameters<IRC::IRCCommand::PRIVMSG> &c
     using result_type =
       std::variant<
         std::tuple<boost::system::error_code, int>,
-        std::tuple<boost::system::error_code, unsigned long>,
+        std::tuple<boost::system::error_code, size_t>,
         std::tuple<boost::system::error_code>
       >;
 
+    auto encodeBuffer              = std::string();
+    auto decodeState          = ztd::text::make_decode_state(ztd::text::wide_execution);
+    auto encodeState = ztd::text::make_encode_state(ztd::text::utf8);
+    auto clangFormatView = std::wstring_view(config_->clangFormatPath.c_str());
+    // @TODO need to do something about this buffer
+    char32_t my_intermediate_buffer[256];
+    std::span<char32_t> pivot(my_intermediate_buffer);
+    auto transcodeResult = ztd::text::transcode_into_raw(
+    clangFormatView,
+      ztd::text::wide_execution,
+      ztd::ranges::unbounded_view(std::back_inserter(encodeBuffer)),
+      ztd::text::utf8,
+      ztd::text::replacement_handler,
+      ztd::text::replacement_handler,
+      decodeState,
+      encodeState,
+      pivot);
+
+
+// const wchar_t* clangFormatPath = config_->clangFormatPath.c_str();
     result_type result = co_await (
       proc::async_execute(
         proc::process(
           co_await asio::this_coro::executor,
-          "/usr/bin/clang-format",
+          "E:\\Tools\\LLVM\\19.1.0\\bin\\clang-format.exe",
           {styleFile, fileName},
           proc::process_stdio{nullptr, formatOut, {}}
         ),
@@ -140,7 +161,7 @@ auto CppFormat::Handle(const IRC::CommandParameters<IRC::IRCCommand::PRIVMSG> &c
     timeout.cancel();
     sig.emit(asio::cancellation_type::terminal);
     auto [ec, size] = *readResult;
-    if(ec != boost::asio::error::misc_errors::eof) {
+    if (ec != boost::asio::error::misc_errors::eof) {
       broadcaster_->Send(Serializer<CppFormatState::Error>{}.Serialize(commandIndx, ec.message()));
     }
   } else if (const auto timeoutResult = std::get_if<2>(&result)) {
@@ -157,7 +178,7 @@ auto CppFormat::Handle(const IRC::CommandParameters<IRC::IRCCommand::PRIVMSG> &c
 
 auto CppFormat::HelpString() -> std::u8string_view
 {
-  return u8"[Command] !cpp command format input as C++ code, forbid emotes.";
+  return u8"format input as C++ code, forbid emotes";
 }
 
 }// namespace TwitchBot

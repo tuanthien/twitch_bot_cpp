@@ -52,16 +52,19 @@ async function displayGenericMessage(data, timeout) {
   let msg = document.createElement("div");
   msg.classList.add('message-content');
 
+  const msgSpan = document.createElement("span");
+  msg.append(msgSpan);
+
   for (const msgPart of msgParts) {
     switch (msgPart.type) {
       case 'text': {
-        msg.append(document.createTextNode(msgPart.value));
+        msgSpan.append(document.createTextNode(msgPart.value));
         break;
       }
       case 'emote': {
         let elem = document.createElement("img");
         elem.setAttribute('src', msgPart.value);
-        msg.append(elem);
+        msgSpan.append(elem);
         break;
       }
     }
@@ -71,11 +74,22 @@ async function displayGenericMessage(data, timeout) {
     handlersEle.classList.add('handlers')
     extra.append(handlersEle);
   }
+
+
+  const title = document.createElement("div");
+  title.classList.add('message-title');
+  title.append(name)
+
+  const shadowBox = document.createElement("div");
+  shadowBox.classList.add('shadow-box')
+  shadowBox.append(title);
+  msg.append(extra);
+  shadowBox.append(msg);
+
   // Create message HTML element
   const message = document.createElement('li');
-  message.append(extra);
-  message.append(name);
-  message.append(msg);
+  message.append(shadowBox);
+  
   message.classList.add('message');
   
   message.id = "message-" + id;
@@ -135,11 +149,11 @@ async function handleCppFormater(data) {
   refMessage.dataset.cppState = data.state;
   switch (data.state) {
     case 0: {
-      const contentEle = refMessage.querySelector('.message-content');
-      const formatedCodeEle = document.createElement('pre');
-      formatedCodeEle.innerText = data.formatted_code;
+      const contentEle = refMessage.querySelector('.message-content>span');
+      const commandListEle = document.createElement('pre');
+      commandListEle.innerText = data.formatted_code;
       contentEle.innerHTML = "";
-      contentEle.append(formatedCodeEle);
+      contentEle.append(commandListEle);
       if(refMessage.parentElement.id == 'container-inactive')
         window.scrollTo(0, document.body.scrollHeight);
       break;
@@ -179,6 +193,54 @@ async function handleCppFormater(data) {
   }
 }
 
+async function handleCommandList(data) {
+  const refMessage = document.getElementById("message-" + data.ref_id);
+  refMessage.dataset.commandsState = data.state;
+  switch (data.state) {
+    case 0: {
+      const contentEle = refMessage.querySelector('.message-content>span');
+      const commandListText = document.createTextNode(data.command_list);
+      contentEle.innerHTML = "";
+      contentEle.append(commandListText);
+      if(refMessage.parentElement.id == 'container-inactive')
+        window.scrollTo(0, document.body.scrollHeight);
+      break;
+    }
+    case 1: {
+      const commandListMsgEle = refMessage.querySelector('.extra > .handlers > .commands > .message')
+      commandListMsgEle.innerText = "Error";
+      break;
+    }
+    case 2: {
+      refMessage.classList.add('modified');
+
+      const handlersEle = refMessage.querySelector('.extra > .handlers');
+   
+      const handlerEle = document.createElement('div');
+      handlerEle.classList.add('commands')
+
+      const handlerNameEle = document.createElement('span');
+      handlerNameEle.classList.add('name');
+      handlerNameEle.innerText = 'commands';
+
+      const handlerStateEle = document.createElement('span');
+      handlerStateEle.classList.add('state');
+      handlerStateEle.innerText = 'Querying';
+
+      handlerEle.append(handlerNameEle, handlerStateEle);
+      handlersEle.append(handlerEle);
+      const handlers = (refMessage.dataset.handlers || "").split(' ');
+      handlers.push('commands');
+      refMessage.dataset.handlers = handlers.join(' ');
+      break;
+    }
+    case 3: {
+      const cppMsgEle = refMessage.querySelector('.extra > .handlers > .commands > .message')
+      cppMsgEle.innerText = "Timeout";
+    }
+  }
+}
+
 async function pushMessage(parsedMessage, timeout) {
   switch (parsedMessage.kind) {
     case 0: {
@@ -186,8 +248,11 @@ async function pushMessage(parsedMessage, timeout) {
       break;
     }
     case 1: {
-      handleCppFormater(parsedMessage.data);
+      setTimeout(() => { handleCppFormater(parsedMessage.data); }, 2000);
       break;
+    }
+    case 2: {
+      setTimeout(() => { handleCommandList(parsedMessage.data); }, 2000);
     }
   }
 
@@ -204,7 +269,7 @@ const messageTimeout = 100.0;
 container.dataset.messageCount = 0;
 container.dataset.messageMax = 20;
 
-const ws = new WebSocket('ws://localhost:8040');
+const ws = new WebSocket('ws://localhost:8080');
 
 ws.onopen = () => {
   console.log('WebSocket connection opened');

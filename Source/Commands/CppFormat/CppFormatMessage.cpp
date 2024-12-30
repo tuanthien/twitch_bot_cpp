@@ -6,7 +6,7 @@
 
 namespace TwitchBot {
 
-auto Serializer<CppFormatState::Success>::Serialize(int64_t refId, std::u8string_view formatted) -> std::string
+auto Serializer<CppFormatState::Success, CppFormatState>::Serialize(int64_t refId, std::u8string_view formatted) -> std::string
 {
   namespace json = boost::json;
   json::object obj;
@@ -19,7 +19,7 @@ auto Serializer<CppFormatState::Success>::Serialize(int64_t refId, std::u8string
   return json::serialize(obj);
 }
 
-auto Serializer<CppFormatState::Error>::Serialize(int64_t refId, std::string_view message) -> std::string
+auto Serializer<CppFormatState::Error, CppFormatState>::Serialize(int64_t refId, std::string_view message) -> std::string
 {
   namespace json = boost::json;
   json::object obj;
@@ -33,7 +33,7 @@ auto Serializer<CppFormatState::Error>::Serialize(int64_t refId, std::string_vie
 }
 
 
-auto Serializer<CppFormatState::Formatting>::Serialize(int64_t refId) -> std::string
+auto Serializer<CppFormatState::Formatting, CppFormatState>::Serialize(int64_t refId) -> std::string
 {
   namespace json = boost::json;
   json::object obj;
@@ -45,7 +45,7 @@ auto Serializer<CppFormatState::Formatting>::Serialize(int64_t refId) -> std::st
   return json::serialize(obj);
 }
 
-auto Serializer<CppFormatState::Timeout>::Serialize(int64_t refId) -> std::string
+auto Serializer<CppFormatState::Timeout, CppFormatState>::Serialize(int64_t refId) -> std::string
 {
   namespace json = boost::json;
   json::object obj;

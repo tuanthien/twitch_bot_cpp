@@ -12,11 +12,13 @@
 }
 
 body {
+  background-color: rgb(51, 51, 51);
   margin: 0;
   /* IE and Edge */
   -ms-overflow-style: none;
   /* Firefox */
   scrollbar-width: none;
+  /* background-image: url("/11510003.jpg"); */
 }
 
 /* Hide scrollbar for Chrome, Safari and Opera */
@@ -77,6 +79,7 @@ body::-webkit-scrollbar {
 #container,
 #container-inactive {
   margin: 0;
+  margin-bottom: 10px;
   width: var(--container-width);
   display: flex;
   flex-direction: column-reverse;
@@ -114,63 +117,107 @@ body::-webkit-scrollbar {
 }
 
 .message {
-  background-color: rgba(59, 59, 59, 0.671);
-  padding: 5px;
+  font-family: 'Josefin Sans', sans-serif;
+  /* background-color: rgba(128, 0, 255, 0.61); */
   padding-left: var(--message-padding-left) !important;
   padding-right: var(--message-padding-right) !important;
   display: block;
   width: calc(var(--container-width) - var(--message-padding-left) - var(--message-padding-right));
   height: auto;
+  border-radius: 5px;
 }
 
-.message>.display-name {
-  color: rgb(0, 93, 146);
-  margin: 3px;
-  font: 12px;
+.message>.shadow-box {
+  -webkit-box-shadow: 10px 10px 5px 0px rgba(0, 0, 0, 0.2);
+  -moz-box-shadow: 10px 10px 5px 0px rgba(0, 0, 0, 0.2);
+  box-shadow: 10px 10px 5px 0px rgba(0, 0, 0, 0.2);
+  margin: 0px;
 }
 
-.message>.message-content {
-  margin: 5px;
-  font-size: 16px;
+.message .message-title {
+  padding: 8px 15px 5px 15px;
+  background: rgb(255, 122, 73);
+  background: linear-gradient(90deg, rgba(255, 122, 73, 1) 23%, rgba(75, 75, 75, 1) 77%, rgba(54, 54, 54, 1) 100%);
+  border-radius: 5px 5px 0px 0px;
+  display: flex;
+  flex-direction: row;
+  justify-content: flex-end;
 }
 
-.message>.extra>.handlers {
+.message .badges {
+  flex-shrink: 1;
+}
+
+.message .display-name {
+  flex-grow: 1;
+  color: rgba(255, 255, 255, 1);
+  text-align: right;
+  font-size: 12pt;
+}
+
+.message .message-content {
+  margin: 0px;
+  padding: 10px 15px;
+  border-radius: 0px 0px 5px 5px;
+  background-color: rgb(194, 194, 194);
+}
+
+.message .message-content>span {
+  text-align: left;
+  margin: 0px;
+  color: rgb(24, 24, 24);
+  font-size: 12pt;
+  font-family: "Noto Sans", sans-serif;
+}
+.message .message-content>span>pre {
+  margin: 0;
+  padding: 0;
+  font-size: 10pt;
+  font-family: 'JetBrainsMono NFM','Courier New', Courier, monospace;
+  letter-spacing: 0;
+  -webkit-font-feature-settings: "liga";
+  -moz-font-feature-settings: "liga=1";
+  -moz-font-feature-settings: "liga";
+  -ms-font-feature-settings: "liga" 1;
+  -o-font-feature-settings: "liga";
+  font-feature-settings: "liga";
+  white-space: pre-wrap;       /* Since CSS 2.1 */
+  white-space: -moz-pre-wrap;  /* Mozilla, since 1999 */
+  white-space: -pre-wrap;      /* Opera 4-6 */
+  white-space: -o-pre-wrap;    /* Opera 7 */
+  word-wrap: break-word;       /* Internet Explorer 5.5+ */
+}
+
+.message .extra {
+  display: flex;
+  flex-direction: row;
+  justify-content: flex-end;
+  /* min-height: 22px; */
+}
+
+.message .extra>.handlers {
   height: 22px;
   max-height: 22px;
 }
 
-.message[data-handlers~='cpp']>.message-content {
+
+.message[data-handlers~='commands']>.message-content {
   font-family: monospace;
   font-size: 12px;
 }
 
-.message[data-handlers~='cpp']>.message-content>pre {
+.message[data-handlers~='commands']>.message-content>pre {
   margin: 0;
 }
 
-.message[data-handlers~='cpp']>.extra>.handlers>.cpp>.name {
+.message[data-handlers~='commands'] .extra>.handlers .name {
   font-size: 10px;
+  color: rgb(210, 210, 210);
   padding: 2px 5px;
-  background-color: rgba(13, 227, 255, 0.822);
+  background-color: rgba(78, 78, 78, 0.822);
   border-radius: 8px;
 }
 
-.message[data-cpp-state='0']>.extra>.handlers>.cpp>.name {
-  background-color: rgba(60, 255, 0, 0.5);
-}
-
-.message[data-cpp-state='0']>.extra>.handlers>.cpp>.name::before {
-  content: '✔'
-}
-
-.message[data-cpp-state='1']>.extra>.handlers>.cpp>.name {
-  background-color: rgba(255, 0, 0, 0.5);
-}
-
-.message[data-cpp-state='1']>.extra>.handlers>.cpp>.name::before {
-  content: '❌'
-}
-
-.message>.extra>.handlers>.cpp>.state {
+.message .extra>.handlers .state {
   display: none;
 }

@@ -10,6 +10,26 @@ namespace TwitchBot {
 
 namespace json = simdjson;
 
+static auto readBotCommandCommandsConfig(json::ondemand::object &commands)
+  -> std::optional<TwitchBot::BotCommandCommandsConfig>
+{
+  json::ondemand::object cpp;
+  auto error = commands["commands"].get_object().get(cpp);
+  if (error) {
+    fmt::print("Error: commands field is not a object");
+    return std::nullopt;
+  }
+
+  int64_t timeoutMillis;
+  error = cpp["timeout_in_millis"].get_int64().get(timeoutMillis);
+  if (error) {
+    fmt::print("Error: timeout_in_millis field is not int64");
+    return std::nullopt;
+  }
+  return BotCommandCommandsConfig{std::chrono::milliseconds(timeoutMillis)};
+}
+
+
 static auto readBotCommandCppConfig(json::ondemand::object &commands) -> std::optional<TwitchBot::BotCommandCppConfig>
 {
   json::ondemand::object cpp;
@@ -117,7 +137,8 @@ auto ReadTwitchBotConfig(std::u8string_view path) -> std::optional<TwitchBotConf
 
   return TwitchBotConfig{
     TwitchChatConnection{std::string(host), port, std::string(channel), std::string(nick)},
-    readBotCommandCppConfig(commands)};
+    readBotCommandCppConfig(commands),
+    readBotCommandCommandsConfig(commands)};
 }
 
 }// namespace TwitchBot

@@ -1,5 +1,5 @@
 {
-  "version": 2,
+  "version": 8,
   "configurePresets": [
     {
       "name": "twb_default",
@@ -11,8 +11,7 @@
     {
       "name": "user-eao_linux_paths",
       "hidden": true,
-      "cacheVariables": {
-      }
+      "cacheVariables": {}
     },
     {
       "name": "linux-debug",
@@ -27,13 +26,70 @@
         "CMAKE_BUILD_PARALLEL_LEVEL": "4"
       },
       "generator": "Ninja",
-      "binaryDir": "${sourceDir}/out/build/${presetName}",
+      "binaryDir": "${sourceDir}/_out/${presetName}",
       "cacheVariables": {
         "CMAKE_VERBOSE_MAKEFILE": "ON",
         "CMAKE_BUILD_TYPE": "Debug",
         "CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/${presetName}",
         "ENABLE_PCH": false,
         "ENABLE_TESTING": true
+      }
+    },
+    {
+      "name": "windows-debug",
+      "displayName": "Windows x64 Debug",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/_out/${presetName}",
+      "cacheVariables": {
+        "CMAKE_VERBOSE_MAKEFILE": "ON",
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_CXX_COMPILER": "cl.exe",
+        "CMAKE_C_COMPILER": "cl.exe",
+        "CMAKE_INSTALL_PREFIX": "${sourceDir}/_install/${presetName}",
+        "CMAKE_MAKE_PROGRAM": "E:/Tools/ninja.exe",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": false,
+        "CPM_SOURCE_CACHE": "E:/Cache/CPM",
+        "BLT_WINAPI_VERSION": "0x0A00000A",
+        "ENABLE_PCH": false,
+        "ENABLE_TESTING": true
+      },
+      "architecture": {
+        "strategy": "external",
+        "value": "x64"
+      },
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      }
+    },
+    {
+      "name": "windows-release",
+      "displayName": "Windows x64 Release",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/_out/${presetName}",
+      "cacheVariables": {
+        "CMAKE_VERBOSE_MAKEFILE": "ON",
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_CXX_COMPILER": "cl.exe",
+        "CMAKE_C_COMPILER": "cl.exe",
+        "CMAKE_INSTALL_PREFIX": "${sourceDir}/_install/${presetName}",
+        "CMAKE_MAKE_PROGRAM": "E:/Tools/ninja.exe",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": false,
+        "CPM_SOURCE_CACHE": "E:/Cache/CPM",
+        "BLT_WINAPI_VERSION": "0x0A00000A",
+        "EAO_ZTD_TEXT_STANDALONE": true,
+        "ENABLE_PCH": false,
+        "ENABLE_TESTING": true
+      },
+      "architecture": {
+        "strategy": "external",
+        "value": "x64"
+      },
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
       }
     }
   ]

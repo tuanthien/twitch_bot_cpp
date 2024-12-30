@@ -9,6 +9,7 @@ macro(setup_project_options targetName)
       /Zc:throwingNew-
       /Zc:preprocessor
       /Zc:externConstexpr
+      /bigobj
       )
   endif()
 

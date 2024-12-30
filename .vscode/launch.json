@@ -24,6 +24,21 @@
           "ignoreFailures": true
         }
       ]
+    }, {
+      "name": "Windows x64",
+      "type": "cppvsdbg",
+      "request": "launch",
+      "program": "${command:cmake.launchTargetPath}",
+      "args": [],
+      "stopAtEntry": false,
+      "cwd": "${workspaceFolder}",
+      "environment": [
+        {
+          "name": "PATH",
+          "value": "${env:PATH}:${command:cmake.getLaunchTargetDirectory}"
+        }
+      ],
+      "console": "integratedTerminal"
     },
   ]
 }

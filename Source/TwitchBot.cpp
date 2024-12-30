@@ -1,3 +1,5 @@
+#include <CertificateStore.hpp>
+
 #include <boost/beast/core.hpp>
 #include <boost/beast/websocket.hpp>
 #include <boost/beast/ssl.hpp>
@@ -9,7 +11,6 @@
 #include <boost/asio/detached.hpp>
 #include <boost/asio/use_awaitable.hpp>
 
-#include "Certificates.hpp"
 #include <cstdlib>
 #include <functional>
 #include <iostream>
@@ -28,9 +29,9 @@
 #include "TwitchBotConfig.hpp"
 #include "ServerConfig.hpp"
 #include "MessageSerializer.hpp"
-#include "Commands/CppFormat.hpp"
 
-namespace TwitchBot {
+#include "Commands/CppFormat/CppFormat.hpp"
+#include "Commands/CommandList/CommandList.hpp"
 
 namespace beast            = boost::beast;// from <boost/beast.hpp>
 namespace http             = beast::http;// from <boost/beast/http.hpp>
@@ -40,7 +41,10 @@ namespace asio             = boost::asio;// from <boost/asio.hpp>
 namespace ssl              = boost::asio::ssl;// from <boost/asio/ssl.hpp>
 using tcp                  = boost::asio::ip::tcp;// from <boost/asio/ip/tcp.hpp>
 using tcp_resolver_results = typename tcp::resolver::results_type;
-using flat_u8buffer = beast::basic_flat_buffer<std::allocator<char8_t>>;
+using flat_u8buffer        = beast::basic_flat_buffer<std::allocator<char8_t>>;
+
+
+namespace TwitchBot {
 
 // Report a failure
 void fail(beast::error_code ec, char const *what)
@@ -49,8 +53,10 @@ void fail(beast::error_code ec, char const *what)
 }
 
 auto botCommandHandler(
-  std::unique_ptr<Command> command, [[maybe_unused]] flat_u8buffer buffer, IRC::CommandParameters<IRC::IRCCommand::PRIVMSG> message, void *userData)
-  -> net::awaitable<std::pair<bool, void *>>
+  std::unique_ptr<Command> command,
+  [[maybe_unused]] flat_u8buffer buffer,
+  IRC::CommandParameters<IRC::IRCCommand::PRIVMSG> message,
+  void *userData) -> net::awaitable<std::pair<bool, void *>>
 {
   std::optional<CommandResult> result = co_await command->Handle(message, userData);
   co_return std::pair<bool, void *>{false, userData};
@@ -111,7 +117,6 @@ net::awaitable<void> do_session(
   // Perform the websocket handshake
   co_await ws.async_handshake(host, "/");
 
-  
 
   // twitch.tv/membership twitch.tv/tags
   co_await ws.async_write(net::buffer("CAP REQ :twitch.tv/tags twitch.tv/commands\r\n"));
@@ -120,7 +125,7 @@ net::awaitable<void> do_session(
   intptr_t commandIndx = 0;
 
   while (true) {
-  // This buffer will hold the incoming message
+    // This buffer will hold the incoming message
     flat_u8buffer buffer;
     // Read a message into our buffer
     co_await ws.async_read(buffer);
@@ -148,7 +153,21 @@ net::awaitable<void> do_session(
               net::co_spawn(
                 ioc,
                 botCommandHandler(
-                  std::move(botCommand), std::move(buffer), std::move(*commandParams), reinterpret_cast<void *>(++commandIndx)),
+                  std::move(botCommand),
+                  std::move(buffer),
+                  std::move(*commandParams),
+                  reinterpret_cast<void *>(++commandIndx)),
+                [](std::exception_ptr e, std::pair<bool, void *> result) { auto [success, userData] = result; });
+              handled = true;
+            } else if (chatText == u8"!commands") {
+              std::unique_ptr<Command> botCommand = std::make_unique<CommandList>(broadcaster, *(config.CommandsConfig));
+              net::co_spawn(
+                ioc,
+                botCommandHandler(
+                  std::move(botCommand),
+                  std::move(buffer),
+                  std::move(*commandParams),
+                  reinterpret_cast<void *>(++commandIndx)),
                 [](std::exception_ptr e, std::pair<bool, void *> result) { auto [success, userData] = result; });
               handled = true;
             } else {
@@ -215,7 +234,8 @@ int main()
 
   // This holds the root certificate used for verification
   boost::system::error_code ec;
-  LoadRootCertificates(ctx, ec);
+
+  TwitchBot::AddRootCerts(ctx);
 
   // Launch the asynchronous operation
   net::co_spawn(ioc, TwitchBot::do_session(ioc, std::move(*twitchConfig), ctx, broadcaster), [](std::exception_ptr e) {

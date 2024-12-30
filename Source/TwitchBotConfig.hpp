@@ -22,10 +22,16 @@ struct BotCommandCppConfig
   std::chrono::milliseconds timeout;
 };
 
+struct BotCommandCommandsConfig
+{
+  std::chrono::milliseconds timeout;
+};
+
 struct TwitchBotConfig
 {
   TwitchChatConnection Connection;
   std::optional<BotCommandCppConfig> CppConfig;
+  std::optional<BotCommandCommandsConfig> CommandsConfig;
 };
 
 

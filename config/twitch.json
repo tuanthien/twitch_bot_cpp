@@ -4,10 +4,13 @@
   "nick": "justinfan9481",
   "channel": "whaatsuuup",
   "commands": {
-    "cpp": { 
-      "clang_format_path": "/usr/bin/clang-format",
+    "cpp": {
+      "clang_format_path": "E:\\Tools\\LLVM\\19.1.0\\bin\\clang-format.exe",
       "clang_format_config_path": "config/.clang-format",
-      "cpp_temp_Path": "tmp/cpp",
+      "cpp_temp_Path": "C:\\Users\\Thanh\\AppData\\Local\\Temp\\twb\\cpp",
+      "timeout_in_millis": 1000
+    },
+    "commands": {
       "timeout_in_millis": 1000
     }
   }

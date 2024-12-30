@@ -1,0 +1,56 @@
+
+.message[data-handlers~='cpp']>.message-content {
+  font-family: monospace;
+  font-size: 12px;
+}
+
+.message[data-handlers~='cpp']>.message-content>pre {
+  margin: 0;
+}
+
+.message[data-handlers~='cpp'] .extra>.handlers>.cpp>.name {
+  font-size: 10px;
+  color: rgb(210, 210, 210);
+  padding: 2px 5px;
+  background-color: rgba(78, 78, 78, 0.822);
+  border-radius: 8px;
+}
+
+.message[data-cpp-state='0'] .extra>.handlers>.cpp>.name {
+  color: rgb(29, 29, 29);
+  background-color: rgba(60, 255, 0, 0.5);
+}
+
+.message[data-cpp-state='0'] .extra>.handlers>.cpp>.name::before {
+  content: '✔️ '
+}
+
+
+.message[data-cpp-state='1'] .extra>.handlers>.cpp>.name {
+  color: rgb(210, 210, 210);
+  background-color: rgba(255, 0, 0, 0.5);
+}
+
+.message[data-cpp-state='1'] .extra>.handlers>.cpp>.name::before {
+  content: '❌ '
+}
+
+.message[data-cpp-state='2'] .extra>.handlers>.cpp>.name::before {
+  content: '💬 '
+    /* @TODO make an animation for this */
+}
+
+.message[data-cpp-state='3'] .extra>.handlers>.cpp>.name {
+  color: rgb(210, 210, 210);
+  background-color: rgba(90, 0, 0, 0.5);
+  text-decoration: line-through;
+}
+
+.message[data-cpp-state='3'] .extra>.handlers>.cpp>.name::before {
+  content: '⏱️ '
+    /* @TODO make an icon that crack the clock */
+}
+
+.message .extra>.handlers>.cpp>.state {
+  display: none;
+}

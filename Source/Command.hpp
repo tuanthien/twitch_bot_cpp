@@ -10,7 +10,8 @@ namespace TwitchBot {
 
 enum struct CommandMessageKind {
   Generic,
-  CppFormatState
+  CppFormatState,
+  CommandListState
 };
 
 struct CommandResult
