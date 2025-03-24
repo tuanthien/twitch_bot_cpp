@@ -11,6 +11,11 @@
 #include <boost/asio/detached.hpp>
 #include <boost/asio/use_awaitable.hpp>
 
+// #include <boost/mysql/any_address.hpp>
+// #include <boost/mysql/any_connection.hpp>
+// #include <boost/mysql/error_with_diagnostics.hpp>
+// #include <boost/mysql/results.hpp>
+
 #include <cstdlib>
 #include <functional>
 #include <iostream>
@@ -28,32 +33,30 @@
 #include "Broadcaster.hpp"
 #include "TwitchBotConfig.hpp"
 #include "ServerConfig.hpp"
+#include "DatabaseConfig.hpp"
 #include "MessageSerializer.hpp"
+#include "Database.hpp"
 
-#include "Commands/CppFormat/CppFormat.hpp"
-#include "Commands/CommandList/CommandList.hpp"
+#include "PluginRegistry.hpp"
 
-namespace beast            = boost::beast;// from <boost/beast.hpp>
-namespace http             = beast::http;// from <boost/beast/http.hpp>
-namespace websocket        = beast::websocket;// from <boost/beast/websocket.hpp>
-namespace net              = boost::asio;// from <boost/asio.hpp>
-namespace asio             = boost::asio;// from <boost/asio.hpp>
-namespace ssl              = boost::asio::ssl;// from <boost/asio/ssl.hpp>
-using tcp                  = boost::asio::ip::tcp;// from <boost/asio/ip/tcp.hpp>
+namespace beast     = boost::beast;// from <boost/beast.hpp>
+namespace http      = beast::http;// from <boost/beast/http.hpp>
+namespace websocket = beast::websocket;// from <boost/beast/websocket.hpp>
+namespace net       = boost::asio;// from <boost/asio.hpp>
+namespace asio      = boost::asio;// from <boost/asio.hpp>
+namespace ssl       = boost::asio::ssl;// from <boost/asio/ssl.hpp>
+using tcp           = boost::asio::ip::tcp;// from <boost/asio/ip/tcp.hpp>
+
+// namespace mysql = boost::mysql;
+
 using tcp_resolver_results = typename tcp::resolver::results_type;
 using flat_u8buffer        = beast::basic_flat_buffer<std::allocator<char8_t>>;
 
 
 namespace TwitchBot {
 
-// Report a failure
-void fail(beast::error_code ec, char const *what)
-{
-  std::cerr << what << ": " << ec.message() << "\n";
-}
-
 auto botCommandHandler(
-  std::unique_ptr<Command> command,
+  std::shared_ptr<CommandHandler> command,
   [[maybe_unused]] flat_u8buffer buffer,
   IRC::CommandParameters<IRC::IRCCommand::PRIVMSG> message,
   void *userData) -> net::awaitable<std::pair<bool, void *>>
@@ -67,8 +70,60 @@ net::awaitable<void> do_session(
   net::io_context &ioc,
   TwitchBot::TwitchBotConfig &&config,
   ssl::context &ctx,
-  std::shared_ptr<TwitchBot::Broadcaster> broadcaster)
+  std::shared_ptr<TwitchBot::Broadcaster> broadcaster,
+  TwitchBot::ConnectParams connectDb)
 {
+  mysql::any_connection conn(ioc);
+  mysql::connect_params params;
+  params.server_address.emplace_host_and_port(
+    std::string(reinterpret_cast<const char *>(connectDb.Host.data())), connectDb.Port);
+  params.username = reinterpret_cast<const char *>(connectDb.Username.data());
+  params.password = reinterpret_cast<const char *>(connectDb.Password.data());
+  params.database = reinterpret_cast<const char *>(connectDb.Database.data());
+
+  // Connect to the server
+  auto mysqlConnectResult = co_await conn.async_connect(params, asio::as_tuple);
+  if (std::get<0>(mysqlConnectResult) != boost::system::errc::success) {
+    fmt::println(stderr, "MySQL connect: {}", std::get<0>(mysqlConnectResult).what());
+    co_return;
+  }
+  auto registry = PluginRegistry(ioc, conn);
+
+  auto commandList = co_await registry.LoadPlugin(
+    ioc, u8"E:/Projects/twitch_bot_cpp/_out/windows-debug/Plugins/CommandList/CommandList.dll", connectDb);
+  auto commandsCommandFactory = commandList->CreateCommandFactory(u8"commands", ioc, connectDb);
+  auto commandsCommand        = co_await commandsCommandFactory->Create(broadcaster);
+  assert(commandsCommand);// @TODO
+
+  auto cppFormat = co_await registry.LoadPlugin(
+    ioc, u8"E:/Projects/twitch_bot_cpp/_out/windows-debug/Plugins/CppFormat/CppFormat.dll", connectDb);
+  auto cppCommandFactory = cppFormat->CreateCommandFactory(u8"cpp", ioc, connectDb);
+  auto cppCommand        = co_await cppCommandFactory->Create(broadcaster);
+  assert(cppCommand);// @TODO
+
+
+  auto poke = co_await registry.LoadPlugin(
+    ioc, u8"E:/Projects/twitch_bot_cpp/_out/windows-debug/Plugins/Poke/Poke.dll", connectDb);
+  auto pokeCommandFactory = poke->CreateCommandFactory(u8"poke", ioc, connectDb);
+  auto pokeCommand        = co_await pokeCommandFactory->Create(broadcaster);
+  assert(pokeCommand);// @TODO
+
+  std::unordered_map<std::u8string, std::array<std::shared_ptr<CommandHandler>, 8>> commandHandlers;
+  commandHandlers.emplace(
+    std::piecewise_construct, std::forward_as_tuple(u8"cpp"), std::forward_as_tuple(std::move(cppCommand)));
+
+  commandHandlers.emplace(
+    std::piecewise_construct, std::forward_as_tuple(u8"commands"), std::forward_as_tuple(std::move(commandsCommand)));
+
+  commandHandlers.emplace(
+    std::piecewise_construct, std::forward_as_tuple(u8"poke"), std::forward_as_tuple(std::move(pokeCommand)));
+
+  // Print the first field in the first row
+  // std::cout << result.rows().at(0).at(0) << std::endl;
+
+  // Close the connection
+  // co_await conn.async_close();
+
   // These objects perform our I/O
   auto resolver = net::use_awaitable.as_default_on(tcp::resolver(co_await net::this_coro::executor));
 
@@ -122,16 +177,23 @@ net::awaitable<void> do_session(
   co_await ws.async_write(net::buffer("CAP REQ :twitch.tv/tags twitch.tv/commands\r\n"));
   co_await ws.async_write(net::buffer(std::string("NICK ") + nick + "\r\n"));
   co_await ws.async_write(net::buffer(std::string("JOIN #") + channel + "\r\n"));
-  intptr_t commandIndx = 0;
+  intptr_t commandIdx = 0;
 
   while (true) {
     // This buffer will hold the incoming message
     flat_u8buffer buffer;
     // Read a message into our buffer
-    co_await ws.async_read(buffer);
-    auto buffer_data = reinterpret_cast<const char8_t *>(buffer.cdata().data());
+    auto [ec, read] = co_await ws.async_read(buffer);
+    if (ec) {
+      fmt::println("Error async_read from twitch irc exit... {}", ec.what());
+    }
+    if (read == 0) continue;
+    auto ircMessage = std::u8string_view(reinterpret_cast<const char8_t *>(buffer.cdata().data()), buffer.size());
+    // fmt::println("IRC: {}", reinterpret_cast<const char*>(buffer_data));
     // broadcaster->Send(std::u8string_view(buffer_data, buffer.size()));
-    auto message = IRC::Parse(std::u8string_view(buffer_data, buffer.size()));
+    auto message = IRC::Parse(ircMessage);
+    fmt::println("IRC: {}", std::string_view(reinterpret_cast<const char *>(ircMessage.data()), ircMessage.size()));
+
     if (message) {
       auto &[command, tags, source, parameters] = message.value();
       switch (command.Kind) {
@@ -141,42 +203,32 @@ net::awaitable<void> do_session(
           auto &privmsg                 = parameters.value();
           auto &[displayName, msgParts] = commandParams.value();
 
-          std::cout << std::string_view(reinterpret_cast<const char *>(displayName.data()), displayName.size()) << ": "
-                    << std::string_view(reinterpret_cast<const char *>(privmsg.data()), privmsg.size()) << '\n';
-
           bool handled = false;
           if (msgParts.size() == 1 and std::holds_alternative<IRC::TextPart>(msgParts[0])) {
-
             std::u8string_view chatText = std::get<IRC::TextPart>(msgParts[0]).Value;
-            if (config.CppConfig and chatText.starts_with(u8"!cpp ")) {
-              std::unique_ptr<Command> botCommand = std::make_unique<CppFormat>(broadcaster, *(config.CppConfig));
-              net::co_spawn(
-                ioc,
-                botCommandHandler(
-                  std::move(botCommand),
-                  std::move(buffer),
-                  std::move(*commandParams),
-                  reinterpret_cast<void *>(++commandIndx)),
-                [](std::exception_ptr e, std::pair<bool, void *> result) { auto [success, userData] = result; });
-              handled = true;
-            } else if (chatText == u8"!commands") {
-              std::unique_ptr<Command> botCommand = std::make_unique<CommandList>(broadcaster, *(config.CommandsConfig));
-              net::co_spawn(
-                ioc,
-                botCommandHandler(
-                  std::move(botCommand),
-                  std::move(buffer),
-                  std::move(*commandParams),
-                  reinterpret_cast<void *>(++commandIndx)),
-                [](std::exception_ptr e, std::pair<bool, void *> result) { auto [success, userData] = result; });
-              handled = true;
-            } else {
-              handled = false;
+            if (chatText.starts_with(u8'!')) {
+              for (const auto &[commandText, handlers] : commandHandlers) {
+                bool startWith = chatText.substr(1, commandText.size()).starts_with(commandText);
+                bool hasSpace  = commandText.size() + 1 <= chatText.size() ? chatText.substr(commandText.size() + 1, 1) == u8" " : false;
+                bool isSingle  = chatText.size() == commandText.size() + 1;
+
+                if (startWith and (isSingle or (not isSingle and hasSpace))) {
+                  for (auto &handler : handlers) {
+                    if (not handler) continue;
+                    net::co_spawn(
+                      ioc,
+                      botCommandHandler(
+                        handler, std::move(buffer), std::move(*commandParams), reinterpret_cast<void *>(++commandIdx)),
+                      [](std::exception_ptr e, std::pair<bool, void *> result) { auto [success, userData] = result; });
+                    handled = true;
+                  }
+                }
+              }
             }
           }
 
           if (not handled) {
-            broadcaster->Send(Serialize(*commandParams, ++commandIndx));
+            broadcaster->Send(Serialize(*commandParams, ++commandIdx));
           }
         }
       } break;
@@ -208,7 +260,6 @@ net::awaitable<void> do_session(
 //------------------------------------------------------------------------------
 int main()
 {
-
   constexpr static const std::u8string_view twitchJsonUtf8Path = u8"config/twitch.json";
   auto twitchConfig                                            = TwitchBot::ReadTwitchBotConfig(twitchJsonUtf8Path);
   if (not twitchConfig) {
@@ -219,6 +270,12 @@ int main()
   if (not serverConfig) {
     return EXIT_FAILURE;
   }
+  constexpr static const std::u8string_view databaseJsonUtf8Path = u8"config/database.json";
+  auto databaseConfig                                            = TwitchBot::ReadDatabaseConfig(databaseJsonUtf8Path);
+  if (not databaseConfig) {
+    return EXIT_FAILURE;
+  }
+
 
   auto broadcaster = std::make_shared<TwitchBot::Broadcaster>();
 
@@ -237,14 +294,24 @@ int main()
 
   TwitchBot::AddRootCerts(ctx);
 
+  auto connectDb = TwitchBot::ConnectParams{
+    .Host                = databaseConfig->Host,
+    .Username            = databaseConfig->Username,
+    .Password            = databaseConfig->Password,
+    .Database            = databaseConfig->Database,
+    .ConnectionCollation = 45,
+    .SSL                 = true,
+    .MultiQueries        = false};
+
   // Launch the asynchronous operation
-  net::co_spawn(ioc, TwitchBot::do_session(ioc, std::move(*twitchConfig), ctx, broadcaster), [](std::exception_ptr e) {
-    if (e) try {
-        std::rethrow_exception(e);
-      } catch (std::exception &ex) {
-        std::cerr << "Error: " << ex.what() << "\n";
-      }
-  });
+  net::co_spawn(
+    ioc, TwitchBot::do_session(ioc, std::move(*twitchConfig), ctx, broadcaster, connectDb), [](std::exception_ptr e) {
+      if (e) try {
+          std::rethrow_exception(e);
+        } catch (std::exception &ex) {
+          std::cerr << "Error: " << ex.what() << "/n";
+        }
+    });
 
   auto threadPool    = std::vector<std::jthread>(0);
   int threadPoolSize = std::thread::hardware_concurrency() - 1;

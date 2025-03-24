@@ -1,0 +1,7 @@
+{
+  "host": "localhost",
+  "port": 3306,
+  "username": "root",
+  "password": "1959e6f8e48f19248e6a83f852d97883d83f0cab93b0b499d633bf888c284d43",
+  "database": "TwitchBot"
+}

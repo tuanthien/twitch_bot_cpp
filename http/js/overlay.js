@@ -36,7 +36,7 @@ const container = document.querySelector('#container');
 const offscreenRegion = document.querySelector('#offscreen-region');
 
 
-async function displayGenericMessage(data, timeout) {
+async function displayGenericMessage(data) {
   const msgParts = data.parts;
   const displayName = data.display_name;
   const id = data.id;
@@ -69,7 +69,7 @@ async function displayGenericMessage(data, timeout) {
       }
     }
   }
-  if(modified) {
+  if (modified) {
     const handlersEle = document.createElement('div');
     handlersEle.classList.add('handlers')
     extra.append(handlersEle);
@@ -89,9 +89,9 @@ async function displayGenericMessage(data, timeout) {
   // Create message HTML element
   const message = document.createElement('li');
   message.append(shadowBox);
-  
+
   message.classList.add('message');
-  
+
   message.id = "message-" + id;
 
   // Add message element into offscreen-region
@@ -108,7 +108,8 @@ async function displayGenericMessage(data, timeout) {
   inactive.style['transform'] = `translate(0%, ${-messageHeight}px)`;
 
   // Wait for container-inactive transform transition to finish
-  await transitioned(inactive);
+  // await transitioned(inactive);
+  await asyncSleep(pushUpDuration * 1000);
 
   // Slide and fading in message into container
   message.classList.add('fadeIn');
@@ -130,44 +131,37 @@ async function displayGenericMessage(data, timeout) {
   // Move message into container-inactive
   // Everything visually should be the same before and after this move
   inactive.prepend(message);
-
-  // Wait for specified amount of time for message to be read
-  await asyncSleep(timeout * 1000);
-
-  // Fading out message
-  message.classList.add('fadeOut');
-
-  // Wait for message fade out animation to finish
-  await asyncSleep(fadeOutDuration * 1000);
-
-  // Remove message from the DOM
-  message.remove()
 }
 
 async function handleCppFormater(data) {
   const refMessage = document.getElementById("message-" + data.ref_id);
+  if(!refMessage) {
+    console.warn("Unable to get message-" + data.ref_id + " . It might have faded out! Consider increase messageTimeout.")
+    return;
+  }
+  
   refMessage.dataset.cppState = data.state;
   switch (data.state) {
-    case 0: {
+    case 0 /* Success */: {
       const contentEle = refMessage.querySelector('.message-content>span');
       const commandListEle = document.createElement('pre');
       commandListEle.innerText = data.formatted_code;
       contentEle.innerHTML = "";
       contentEle.append(commandListEle);
-      if(refMessage.parentElement.id == 'container-inactive')
+      if (refMessage.parentElement.id == 'container-inactive')
         window.scrollTo(0, document.body.scrollHeight);
       break;
     }
-    case 1: {
-      const cppMsgEle = refMessage.querySelector('.extra > .handlers > .cpp > .message')
+    case 1 /* Error */: {
+      const cppMsgEle = refMessage.querySelector('.extra > .handlers > .cpp > .state')
       cppMsgEle.innerText = "Error";
       break;
     }
-    case 2: {
+    case 2 /* Formatting */: {
       refMessage.classList.add('modified');
 
       const handlersEle = refMessage.querySelector('.extra > .handlers');
-   
+
       const handlerEle = document.createElement('div');
       handlerEle.classList.add('cpp')
 
@@ -186,8 +180,8 @@ async function handleCppFormater(data) {
       refMessage.dataset.handlers = handlers.join(' ');
       break;
     }
-    case 3: {
-      const cppMsgEle = refMessage.querySelector('.extra > .handlers > .cpp > .message')
+    case 3 /* Timeout */: {
+      const cppMsgEle = refMessage.querySelector('.extra > .handlers > .cpp > .state')
       cppMsgEle.innerText = "Timeout";
     }
   }
@@ -199,15 +193,15 @@ async function handleCommandList(data) {
   switch (data.state) {
     case 0: {
       const contentEle = refMessage.querySelector('.message-content>span');
-      const commandListText = document.createTextNode(data.command_list);
+      const commandListText = document.createTextNode(data.commands);
       contentEle.innerHTML = "";
       contentEle.append(commandListText);
-      if(refMessage.parentElement.id == 'container-inactive')
+      if (refMessage.parentElement.id == 'container-inactive')
         window.scrollTo(0, document.body.scrollHeight);
       break;
     }
     case 1: {
-      const commandListMsgEle = refMessage.querySelector('.extra > .handlers > .commands > .message')
+      const commandListMsgEle = refMessage.querySelector('.extra > .handlers > .commands > .state')
       commandListMsgEle.innerText = "Error";
       break;
     }
@@ -215,7 +209,7 @@ async function handleCommandList(data) {
       refMessage.classList.add('modified');
 
       const handlersEle = refMessage.querySelector('.extra > .handlers');
-   
+
       const handlerEle = document.createElement('div');
       handlerEle.classList.add('commands')
 
@@ -235,41 +229,115 @@ async function handleCommandList(data) {
       break;
     }
     case 3: {
-      const cppMsgEle = refMessage.querySelector('.extra > .handlers > .commands > .message')
+      const cppMsgEle = refMessage.querySelector('.extra > .handlers > .commands > .state')
       cppMsgEle.innerText = "Timeout";
     }
   }
 }
 
-async function pushMessage(parsedMessage, timeout) {
-  switch (parsedMessage.kind) {
+async function handlePoke(data) {
+  const refMessage = document.getElementById("message-" + data.ref_id);
+  refMessage.dataset.pokeState = data.state;
+  const contentEle = refMessage.querySelector('.message-content>span');
+
+  const initElements = (state) => {
+    refMessage.classList.add('modified');
+
+    const handlersEle = refMessage.querySelector('.extra > .handlers');
+
+    const handlerEle = document.createElement('div');
+    handlerEle.classList.add('poke')
+
+    const handlerNameEle = document.createElement('span');
+    handlerNameEle.classList.add('name');
+    handlerNameEle.innerText = 'poke';
+
+    const handlerStateEle = document.createElement('span');
+    handlerStateEle.classList.add('state');
+    handlerStateEle.innerText = state;
+
+    handlerEle.append(handlerNameEle, handlerStateEle);
+    handlersEle.append(handlerEle);
+    const handlers = (refMessage.dataset.handlers || "").split(' ');
+    handlers.push('poke');
+    refMessage.dataset.handlers = handlers.join(' ');
+  };
+
+  switch (data.state) {
     case 0: {
-      displayGenericMessage(parsedMessage.data, timeout);
+      const contentEle = refMessage.querySelector('.message-content>span');
+      const commandListText = document.createTextNode("Poke completed!");
+      contentEle.innerHTML = "";
+      contentEle.append(commandListText);
+      if (refMessage.parentElement.id == 'container-inactive')
+        window.scrollTo(0, document.body.scrollHeight);
       break;
     }
     case 1: {
-      setTimeout(() => { handleCppFormater(parsedMessage.data); }, 2000);
+      const commandListMsgEle = refMessage.querySelector('.extra > .handlers > .poke > .state')
+      commandListMsgEle.innerText = "Error";
       break;
     }
     case 2: {
-      setTimeout(() => { handleCommandList(parsedMessage.data); }, 2000);
+      initElements("InProgress");
+      const commandListText = document.createTextNode(data.from + " start" + " poking!");
+      contentEle.innerHTML = "";
+      contentEle.append(commandListText);
+
+      var audio = new Audio('/media/kitten_meow.wav');
+      audio.play();
+
+      break;
+    }
+    case 3: {
+      const cppMsgEle = refMessage.querySelector('.extra > .handlers > .poke > .state')
+      cppMsgEle.innerText = "Timeout";
+      const commandListText = document.createTextNode(data.from + " start" + " poking!");
+      contentEle.innerHTML = "";
+      contentEle.append(commandListText);
+
+      break;
+    }
+    case 4: {
+      initElements("Reject");
+      const commandListText = document.createTextNode("Poke is in cooldown, next in " + Math.ceil(data.next_in_millis / 1000) + " seconds!");
+      contentEle.innerHTML = "";
+      contentEle.append(commandListText);
+      break;
+    }
+  }
+}
+
+
+async function pushMessage(parsedMessage) {
+  switch (parsedMessage.kind) {
+    case '00000000-0000-0000-0000-000000000000': {
+      await displayGenericMessage(parsedMessage.data);
+      break;
+    }
+    case 'ee50b83b-9182-4e31-b33f-a6b94722cc85': {
+      await handleCppFormater(parsedMessage.data);
+      break;
+    }
+    case '1c66ecd2-663c-4e04-975f-a6593432e53c': {
+      await handleCommandList(parsedMessage.data);
+      break;
+    }
+    case 'c858e29c-c320-4de6-a227-013d8f7a90f0': {
+      await handlePoke(parsedMessage.data);
+      break;
     }
   }
 
-  if (parsedMessage.kind !== 0) {
-    return;
-  }
-
+  return;
 }
 
-// minimum delay (+50ms) between messages necessary to not break animations
-const minimumDelay = fadeInDuration + pushUpDuration + 0.05;
-const pushingDelay = 0.5 + minimumDelay;
-const messageTimeout = 100.0;
+const messageTimeout = 10.0;
 container.dataset.messageCount = 0;
 container.dataset.messageMax = 20;
 
 const ws = new WebSocket('ws://localhost:8080');
+const msgInQueue = [];
 
 ws.onopen = () => {
   console.log('WebSocket connection opened');
@@ -277,14 +345,46 @@ ws.onopen = () => {
 ws.onmessage = (msg) => {
   console.log('Message: ', msg.data);
   const message = JSON.parse(msg.data);
-  setTimeout(() => {
-    container.dataset.messageCount++;
-    
-    pushMessage(message, messageTimeout);
-  }, pushingDelay * 1000);
-
+  container.dataset.messageCount = parseInt(container.dataset.messageCount) + 1;
+  msgInQueue.push([container.dataset.messageCount, message, message.data?.id]);
 }
 
 ws.onclose = (msg) => {
   console.log('Closed');
 }
+
+let messageIdx = 1;
+
+
+setInterval(async () => {
+  messageInfo = msgInQueue.at(0);
+  if(!messageInfo) return;
+  const [idx, message, id]  = messageInfo;
+  if (messageIdx != idx) return;
+  
+  if(message.kind == '00000000-0000-0000-0000-000000000000') { 
+    messageIdx++;
+    await pushMessage(message);
+    setTimeout(async() => {
+      const refMessage = document.getElementById("message-" + id);
+      // Fading out message
+      refMessage.classList.add('fadeOut');
+      // Wait for message fade out animation to finish
+      await asyncSleep(fadeOutDuration * 1000);
+      // Remove message from the DOM
+      refMessage.remove()
+    }, messageTimeout * 1000);
+    
+    msgInQueue.shift();
+  } else {
+    messageIdx++;
+    if(message.data.ref_id) {
+      const refMessage = document.getElementById("message-" + message.data.ref_id);
+      // if(refMessage.classList.contains('fadeIn')); {
+      //   await asyncSleep(fadeInDuration * 1000)
+      // }
+      await pushMessage(message, messageTimeout);
+    }
+    msgInQueue.shift();
+  }
+}, 100);

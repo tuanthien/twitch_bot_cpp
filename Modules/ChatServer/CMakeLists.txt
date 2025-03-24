@@ -13,7 +13,9 @@ target_sources(ChatServer PRIVATE
   Source/Broadcaster.hpp
 )
 
-target_link_libraries(ChatServer PUBLIC 
+
+target_link_libraries(ChatServer 
+  PUBLIC
   Boost::lockfree
   Boost::asio
   Boost::beast

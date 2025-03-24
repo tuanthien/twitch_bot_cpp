@@ -3,6 +3,7 @@ include(_cmake/CPMPackageManager.cmake)
 # OpenSSL
 if (NOT TARGET ssl)
 CPMAddPackage(
+  NAME OpenSSL
   GITHUB_REPOSITORY "google/boringssl"
   GIT_SHALLOW    ON
   GIT_TAG 0.20240930.0
@@ -12,6 +13,8 @@ CPMAddPackage(
   SYSTEM YES
   EXCLUDE_FROM_ALL YES
 )
+add_library(OpenSSL::Crypto ALIAS crypto)
+add_library(OpenSSL::SSL ALIAS ssl)
 endif()
 
 #set(BOOST_ASIO_HAS_IO_URING ON)
@@ -29,7 +32,7 @@ CPMAddPackage(
   OPTIONS
   "_WIN32_WINNT ${BLT_WINAPI_VERSION}"
   "BOOST_ENABLE_CMAKE ON"
-  "BOOST_INCLUDE_LIBRARIES:STRING=lockfree\\\\;beast\\\\;atomic\\\\;chrono\\\\;container\\\\;date_time\\\\;exception\\\\;filesystem\\\\;thread\\\\;program_options\\\\;asio\'"
+  "BOOST_INCLUDE_LIBRARIES:STRING=lockfree\\\\;beast\\\\;atomic\\\\;chrono\\\\;container\\\\;date_time\\\\;exception\\\\;outcome\\\\;filesystem\\\\;thread\\\\;program_options\\\\;mysql\\\\;asio\'"
   "BOOST_EXCLUDE_LIBRARIES \'python\\\\;parameter_python\'"
   "BOOST_ENABLE_MPI OFF"
   "BOOST_ENABLE_PYTHON OFF"
@@ -37,7 +40,7 @@ CPMAddPackage(
   #"BOOST_ASIO_HAS_IO_URING ON"
   #"BOOST_ASIO_DISABLE_EPOLL ON"
   #"BOOST_ASIO_HAS_IO_URING_AS_DEFAULT ON"
-  FIND_PACKAGE_ARGUMENTS "COMPONENTS program_options beast asio lockfree atomic lockfree program_options json process"
+  FIND_PACKAGE_ARGUMENTS "COMPONENTS outcome program_options beast asio lockfree atomic lockfree program_options json process mysql"
   SYSTEM YES
   EXCLUDE_FROM_ALL YES
 )
@@ -105,3 +108,4 @@ if(NOT TARGET Eao::Detail::ztd::text)
     SYSTEM YES
     EXCLUDE_FROM_ALL YES)
 endif()
+

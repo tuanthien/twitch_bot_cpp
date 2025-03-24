@@ -7,34 +7,27 @@ target_sources(${MODULE_NAME}
     FILE_SET HEADERS 
     BASE_DIRS Source
     FILES
-      $<$<PLATFORM_ID:Windows>:Source/Windows/PlatformInclude.hpp>
-      Source/CertificateStore.hpp
       Source/ServerConfig.hpp
       Source/TwitchBotConfig.hpp
-      Source/MessageSerializer.hpp
-      Source/Command.hpp
-      Source/Commands/CppFormat/CppFormat.hpp
-      Source/Commands/CppFormat/CppFormatMessage.hpp
-      Source/Commands/CommandList/CommandList.hpp
-      Source/Commands/CommandList/CommandListMessage.hpp
+      Source/DatabaseConfig.hpp
+      Source/PluginModule.hpp
+      Source/PluginRegistry.hpp
       Source/TwitchBot.hpp
 
   PRIVATE 
-    $<$<PLATFORM_ID:Windows>:Source/Windows/CertificateStore.cpp>
+    Source/DatabaseConfig.cpp
     Source/ServerConfig.cpp
     Source/TwitchBotConfig.cpp
-    Source/MessageSerializer.cpp
-    Source/Command.cpp
-    Source/Commands/CppFormat/CppFormat.cpp
-    Source/Commands/CppFormat/CppFormatMessage.cpp
-    Source/Commands/CommandList/CommandList.cpp
-    Source/Commands/CommandList/CommandListMessage.cpp
     Source/TwitchBot.cpp
 )
 
 include(_cmake/Dependencies.cmake)
+add_subdirectory(Source/Core)
 add_subdirectory(Modules/TwitchIRCParser)
 add_subdirectory(Modules/ChatServer)
+add_subdirectory(Plugins/CppFormat)
+add_subdirectory(Plugins/CommandList)
+add_subdirectory(Plugins/Poke)
 
 target_compile_definitions(${MODULE_NAME} 
   PUBLIC 
@@ -49,22 +42,23 @@ target_link_libraries(
   PUBLIC
   Boost::program_options
   Eao::Detail::ztd::text
-  
+  TwitchBot_Core
+
   PRIVATE
   TwitchIRCParser
   ChatServer
-
   fmt::fmt-header-only
-  #spdlog::spdlog
   simdjson::simdjson
   
   ssl crypto
-    
+  
   Boost::asio
   Boost::beast
   Boost::json
   Boost::process
-
+  Boost::charconv
+  Boost::mysql
+  
   $<$<PLATFORM_ID:Linux>:uring>
   $<$<PLATFORM_ID:Windows>:Crypt32.lib>
   

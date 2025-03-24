@@ -35,6 +35,7 @@ beast::string_view mime_type(beast::string_view path)
   if (iequals(ext, ".tif")) return "image/tiff";
   if (iequals(ext, ".svg")) return "image/svg+xml";
   if (iequals(ext, ".svgz")) return "image/svg+xml";
+  if (iequals(ext, ".wav")) return "audio/wav";
   return "application/text";
 }
 

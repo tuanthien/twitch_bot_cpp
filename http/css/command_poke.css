@@ -1,0 +1,60 @@
+
+.message[data-handlers~='poke']>.message-content {
+  font-family: monospace;
+  font-size: 12px;
+}
+
+.message[data-handlers~='poke']>.message-content>pre {
+  margin: 0;
+}
+
+.message[data-handlers~='poke'] .extra>.handlers>.poke>.name {
+  font-size: 10px;
+  color: rgb(210, 210, 210);
+  padding: 2px 5px;
+  background-color: rgba(78, 78, 78, 0.822);
+  border-radius: 8px;
+}
+
+.message[data-poke-state='0'] .extra>.handlers>.poke>.name {
+  color: rgb(29, 29, 29);
+  background-color: rgba(60, 255, 0, 0.5);
+}
+
+.message[data-poke-state='0'] .extra>.handlers>.poke>.name::before {
+  content: '✔️ '
+}
+
+
+.message[data-poke-state='1'] .extra>.handlers>.poke>.name {
+  color: rgb(210, 210, 210);
+  background-color: rgba(255, 0, 0, 0.5);
+}
+
+.message[data-poke-state='1'] .extra>.handlers>.poke>.name::before {
+  content: '❌ '
+}
+
+.message[data-poke-state='2'] .extra>.handlers>.poke>.name::before {
+  content: '👉 '
+    /* @TODO make an animation for this */
+}
+
+.message[data-poke-state='3'] .extra>.handlers>.poke>.name {
+  color: rgb(210, 210, 210);
+  background-color: rgba(90, 0, 0, 0.5);
+  text-decoration: line-through;
+}
+
+.message[data-poke-state='3'] .extra>.handlers>.poke>.name::before {
+  content: '⏱️ '
+}
+
+.message[data-poke-state='4'] .extra>.handlers>.poke>.name::before {
+  content: '🚫 '
+}
+
+
+.message .extra>.handlers>.poke>.state {
+  display: none;
+}

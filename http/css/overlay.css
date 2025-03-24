@@ -109,11 +109,13 @@ body::-webkit-scrollbar {
 
 .message.fadeOut {
   animation: fadeOut var(--fade-out-duration);
+  animation-fill-mode: forwards;
 }
 
 .message.fadeIn {
   position: absolute;
   animation: fadeIn var(--fade-in-duration);
+  animation-fill-mode: forwards;
 }
 
 .message {

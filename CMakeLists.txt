@@ -42,5 +42,6 @@ if (ENABLE_TESTING)
   FetchContent_MakeAvailable(googletest)
 endif ()
 
+
 # project's modules
 include(_cmake/Module.cmake)

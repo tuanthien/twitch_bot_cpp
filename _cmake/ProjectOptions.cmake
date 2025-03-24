@@ -1,5 +1,6 @@
 macro(setup_project_options targetName)
   add_library("${targetName}" INTERFACE)
+  target_compile_definitions("${targetName}" INTERFACE _WIN32_WINNT=${BLT_WINAPI_VERSION})
   if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     target_compile_options(${targetName}
       INTERFACE
