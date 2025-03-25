@@ -26,6 +26,15 @@ body::-webkit-scrollbar {
   display: none;
 }
 
+@keyframes simplefadeOut {
+  0% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
 @keyframes fadeOut {
   0% {
     opacity: 1;
@@ -38,6 +47,15 @@ body::-webkit-scrollbar {
   100% {
     transform: translate(0px, -100%);
     opacity: 0;
+  }
+}
+
+@keyframes simplefadeIn {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
   }
 }
 
@@ -105,6 +123,33 @@ body::-webkit-scrollbar {
       rgba(0, 0, 0, 1) 0%,
       rgba(0, 0, 0, 1) 75%,
       rgba(0, 0, 0, 0) 100%);
+}
+
+#global-message {
+  position: absolute;
+  top: calc(var(--container-height) - 10px - var(--container-padding) - 10px);
+  left: calc(var(--container-padding) + var(--message-padding-left));
+  z-index: 999;
+  width: calc(var(--container-width) - (var(--container-padding) + var(--message-padding-left)) - 10px);
+  height: 40px;
+  background-color: red;
+  color: white;
+  padding: 10px 0px 0px 10px;
+}
+
+#global-message.fadeOut {
+  animation: simplefadeOut var(--fade-out-duration);
+  animation-fill-mode: forwards;
+}
+
+#global-message.fadeIn {
+  position: absolute;
+  animation: simplefadeIn var(--fade-in-duration);
+  animation-fill-mode: forwards;
+}
+
+#retry_message {
+  display:inline-block;
 }
 
 .message.fadeOut {

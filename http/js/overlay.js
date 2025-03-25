@@ -336,25 +336,117 @@ const messageTimeout = 10.0;
 container.dataset.messageCount = 0;
 container.dataset.messageMax = 20;
 
-const ws = new WebSocket('ws://localhost:8080');
-const msgInQueue = [];
 
-ws.onopen = () => {
-  console.log('WebSocket connection opened');
+let retryCount = 0;
+const retryMaxCount = 5;
+const retryCooldownInMillis = 10000;
+let retryScheduleHandle = undefined;
+let lastRetry = Date.now() - retryCooldownInMillis;
+let retryCooldownHandle = undefined;
+
+function ws_open() {
+  console.log('TwitchBot connected');
+  const globalMsg = document.querySelector("#global-message");
+  globalMsg.classList.remove("fadeIn");
+  globalMsg.classList.add("fadeOut");
+  globalMsg.style['opacity'] = 0;
+  clearInterval(retryCooldownHandle);
+  retryCooldownHandle = undefined;
+  clearTimeout(retryScheduleHandle);
+  retryScheduleHandle = undefined;
+  retryCount = 0;
 }
-ws.onmessage = (msg) => {
+
+function ws_onmessage(msg) {
   console.log('Message: ', msg.data);
   const message = JSON.parse(msg.data);
   container.dataset.messageCount = parseInt(container.dataset.messageCount) + 1;
   msgInQueue.push([container.dataset.messageCount, message, message.data?.id]);
 }
 
-ws.onclose = (msg) => {
-  console.log('Closed');
+
+function ws_onerror(err) {
+  console.warn(err)
 }
 
-let messageIdx = 1;
+function ws_reconnect(websocket, reconnect, lastRetry) {
+  if(retryCount >= retryMaxCount) {
+    document.querySelector('#overlay_connect').removeAttribute('disabled');
+    return;  
+  }
+  const nextInMillis = retryCooldownInMillis - (Date.now() - lastRetry); 
+  
+  const globalMsg = document.querySelector("#global-message");
+  globalMsg.innerHTML = "TwitchBot disconnected <button id='overlay_connect' onclick='overlay_connect()'>Connect</button>. <div id='retry_message'>Retry in <span id='retry_cooldown'></span></div>"
+  globalMsg.style['opacity'] = 1;
+  const retry_cooldown = document.querySelector('#retry_cooldown');
+  retry_cooldown.innerText = Math.max(0, Math.ceil(nextInMillis / 1000));
+  retryCooldownHandle = setInterval(()=> {
+    counter = parseInt(retry_cooldown.innerText);
+    retry_cooldown.innerText = counter - 1;
+  }, 1000);
 
+  globalMsg.classList.remove("fadeOut");
+  globalMsg.classList.add("fadeIn");
+  
+  retryScheduleHandle = setTimeout(() => {
+    retryCount++;
+    clearInterval(retryCooldownHandle);
+    retryCooldownHandle = undefined;
+    clearTimeout(retryScheduleHandle);
+    retryScheduleHandle = undefined;
+
+    document.querySelector('#overlay_connect').setAttribute('disabled', '');
+    lastRetry = Date.now();
+    console.log("Retry... " + retryCount + " " + new Date().toLocaleString());
+    const retryMessage = document.querySelector('#retry_message');
+    retryMessage.innerText = "Retry connection #" + retryCount;
+    websocket = new WebSocket('ws://localhost:8080');
+    websocket.onopen = ws_open;
+    websocket.onmessage = ws_onmessage;
+    websocket.onclose = () => { 
+      console.error('Connection closed');
+      reconnect(websocket, reconnect, lastRetry)
+    };
+    websocket.onerror = ws_onerror;
+  }, nextInMillis);
+}
+
+function overlay_connect(event) {
+  if(retryScheduleHandle) {
+    clearTimeout(retryScheduleHandle);
+  }
+  if(retryCooldownHandle) {
+    clearInterval(retryCooldownHandle);
+    (retryCooldownHandle);
+  }
+  lastRetry = Date.now();
+  document.querySelector('#retry_message').innerText = 'Retry connection';
+  document.querySelector('#overlay_connect').setAttribute('disabled', '');
+  console.log("Manually retry connection " + new Date().toLocaleString());
+  const ws = new WebSocket('ws://localhost:8080');
+  ws.onopen = ws_open;
+  ws.onmessage = ws_onmessage;
+  ws.onclose = () => { 
+    console.error('Connection closed');
+    ws_reconnect(ws, ws_reconnect, lastRetry);
+  };
+  ws.onerror = ws_onerror;
+
+}
+
+const ws = new WebSocket('ws://localhost:8080');
+ws.onopen = ws_open;
+ws.onmessage = ws_onmessage;
+ws.onclose = () => { 
+  console.error('Connection closed');
+  ws_reconnect(ws, ws_reconnect, lastRetry);
+};
+ws.onerror = ws_onerror;
+
+
+const msgInQueue = [];
+let messageIdx = 1;
 
 setInterval(async () => {
   messageInfo = msgInQueue.at(0);
@@ -380,9 +472,6 @@ setInterval(async () => {
     messageIdx++;
     if(message.data.ref_id) {
       const refMessage = document.getElementById("message-" + message.data.ref_id);
-      // if(refMessage.classList.contains('fadeIn')); {
-      //   await asyncSleep(fadeInDuration * 1000)
-      // }
       await pushMessage(message, messageTimeout);
     }
     msgInQueue.shift();
