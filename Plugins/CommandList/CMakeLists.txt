@@ -30,20 +30,11 @@ target_link_libraries(
   TwitchIRCParser
   ChatServer
   fmt::fmt-header-only
-  simdjson::simdjson
-  
-  ssl crypto
   
   Boost::asio
-  Boost::beast
-  Boost::json
-  Boost::process
-  Boost::charconv
-  Boost::mysql
   
   $<$<PLATFORM_ID:Linux>:uring>
-  $<$<PLATFORM_ID:Windows>:Crypt32.lib>
-  
+
   "$<BUILD_INTERFACE:${PROJECT_WARNINGS_TARGET}>" 
   "$<BUILD_INTERFACE:${PROJECT_OPTIONS_TARGET}>" 
 )

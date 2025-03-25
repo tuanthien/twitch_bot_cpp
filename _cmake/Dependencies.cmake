@@ -32,7 +32,7 @@ CPMAddPackage(
   OPTIONS
   "_WIN32_WINNT ${BLT_WINAPI_VERSION}"
   "BOOST_ENABLE_CMAKE ON"
-  "BOOST_INCLUDE_LIBRARIES:STRING=lockfree\\\\;beast\\\\;atomic\\\\;chrono\\\\;container\\\\;date_time\\\\;exception\\\\;outcome\\\\;filesystem\\\\;thread\\\\;program_options\\\\;mysql\\\\;asio\'"
+  "BOOST_INCLUDE_LIBRARIES:STRING=outcome\\\\;beast\\\\;asio\\\\;json\\\\;process\\\\;mysql\'"
   "BOOST_EXCLUDE_LIBRARIES \'python\\\\;parameter_python\'"
   "BOOST_ENABLE_MPI OFF"
   "BOOST_ENABLE_PYTHON OFF"
@@ -40,7 +40,7 @@ CPMAddPackage(
   #"BOOST_ASIO_HAS_IO_URING ON"
   #"BOOST_ASIO_DISABLE_EPOLL ON"
   #"BOOST_ASIO_HAS_IO_URING_AS_DEFAULT ON"
-  FIND_PACKAGE_ARGUMENTS "COMPONENTS outcome program_options beast asio lockfree atomic lockfree program_options json process mysql"
+  FIND_PACKAGE_ARGUMENTS "COMPONENTS outcome beast asio json process mysql"
   SYSTEM YES
   EXCLUDE_FROM_ALL YES
 )
