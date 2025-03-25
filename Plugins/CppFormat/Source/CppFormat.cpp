@@ -1,6 +1,5 @@
 #include "CppFormat.hpp"
 
-// #include <boost/program_options.hpp>
 #include <boost/asio.hpp>
 #include "boost/asio/experimental/awaitable_operators.hpp"
 #include <boost/asio/as_tuple.hpp>
@@ -237,8 +236,6 @@ auto CppFormat::Handle(const IRC::CommandParameters<IRC::IRCCommand::PRIVMSG> &c
   auto styleFile =
     fmt::format("--style=file:{}", reinterpret_cast<const char *>(config_.ClangFormatConfigPath.c_str()));
 
-  constexpr static auto code = std::u8string_view(u8"int main(){return 0;}");
-
   asio::steady_timer timeout{co_await asio::this_coro::executor, std::chrono::milliseconds(config_.TimeoutInMillis)};
   asio::cancellation_signal sig;
   std::u8string buffer;
@@ -263,7 +260,7 @@ auto CppFormat::Handle(const IRC::CommandParameters<IRC::IRCCommand::PRIVMSG> &c
   auto result = co_await (
     timeout.async_wait(asio::as_tuple(asio::use_awaitable))
     || (asio::async_read(formatOut, asio::dynamic_buffer(buffer), asio::as_tuple(asio::use_awaitable))
-        && write_to_clang_format(formatIn, code))
+        && write_to_clang_format(formatIn, chatText))
   );
 
   if(auto timeoutResult = std::get_if<0>(&result)) {
