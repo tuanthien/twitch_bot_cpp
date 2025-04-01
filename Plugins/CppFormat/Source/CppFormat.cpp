@@ -5,6 +5,7 @@
 #include <boost/asio/as_tuple.hpp>
 #include <boost/asio/use_awaitable.hpp>
 #include <boost/asio/readable_pipe.hpp>
+#include <boost/asio/writable_pipe.hpp>
 #include <boost/process/v2.hpp>
 #include "Conversion.hpp"
 #include <fmt/format.h>
@@ -203,15 +204,16 @@ CppFormat::CppFormat(CppFormatConfig &&config, const std::shared_ptr<Broadcaster
   , config_(std::move(config))
 {}
 
-static auto write_to_clang_format(asio::writable_pipe& formatIn, std::u8string_view code)
-  -> asio::awaitable<std::tuple<boost::system::error_code, size_t>> 
+static auto write_to_clang_format(asio::writable_pipe &formatIn, std::u8string_view code)
+  -> asio::awaitable<std::tuple<boost::system::error_code, size_t>>
 {
   constexpr static char8_t eofChar = 0;
-  const auto eof = std::u8string_view(&eofChar, 1);
-  auto [writeErr, writeSize] = co_await asio::async_write(formatIn,asio::const_buffer(code.data(), code.size()), asio::as_tuple(asio::use_awaitable));
+  const auto eof                   = std::u8string_view(&eofChar, 1);
+  auto [writeErr, writeSize]       = co_await asio::async_write(
+    formatIn, asio::const_buffer(code.data(), code.size()), asio::as_tuple(asio::use_awaitable));
   assert(writeSize == code.size());
-  
-  if(writeErr != boost::system::errc::success) {
+
+  if (writeErr != boost::system::errc::success) {
     fmt::println("write_to_clang_format: {}", writeErr.what());
     co_return std::tuple<boost::system::error_code, size_t>(writeErr, size_t{0});
   }
@@ -245,47 +247,46 @@ auto CppFormat::Handle(const IRC::CommandParameters<IRC::IRCCommand::PRIVMSG> &c
   proc::async_execute(
     proc::process(
       co_await asio::this_coro::executor,
-      reinterpret_cast<const char*>(config_.ClangFormatPath.c_str()),
+      reinterpret_cast<const char *>(config_.ClangFormatPath.c_str()),
       {styleFile, "--assume-filename=code.cpp"},
-      proc::process_stdio{formatIn, formatOut, {} }
-    ),
-    asio::bind_cancellation_slot(sig.slot(), [&](boost::system::error_code ec, int exit_code)
-    {
-      if(ec or exit_code != 0) { /* @TODO log error? */ }
+      proc::process_stdio{formatIn, formatOut, {}}),
+    asio::bind_cancellation_slot(sig.slot(), [&](boost::system::error_code ec, int exit_code) {
+      if (ec or exit_code != 0) { /* @TODO log error? */
+      }
       timeout.cancel();
-    })
-  );
+    }));
 
   using namespace boost::asio::experimental::awaitable_operators;
   auto result = co_await (
     timeout.async_wait(asio::as_tuple(asio::use_awaitable))
-    || (asio::async_read(formatOut, asio::dynamic_buffer(buffer), asio::as_tuple(asio::use_awaitable))
-        && write_to_clang_format(formatIn, chatText))
-  );
+    || (asio::async_read(formatOut, asio::dynamic_buffer(buffer), asio::as_tuple(asio::use_awaitable)) && write_to_clang_format(formatIn, chatText)));
 
-  if(auto timeoutResult = std::get_if<0>(&result)) {
+  if (auto timeoutResult = std::get_if<0>(&result)) {
     auto [ec] = *timeoutResult;
-    if(ec) { co_return std::nullopt; }
+    if (ec) {
+      co_return std::nullopt;
+    }
     broadcaster_->Send(Serializer<CppFormatState::Timeout>{}.Serialize(commandIdx));
     sig.emit(asio::cancellation_type::partial);
     timeout.expires_after(std::chrono::seconds(3));
     auto [exitRequest] = co_await timeout.async_wait(asio::as_tuple(asio::use_awaitable));
-    if(not exitRequest) sig.emit(asio::cancellation_type::terminal);
-  
+    if (not exitRequest) sig.emit(asio::cancellation_type::terminal);
+
   } else if (auto formatResult = std::get_if<1>(&result)) {
-    auto& [readErr, read, writeResult] = *formatResult;
-    auto& [writeErr, write] = writeResult;
-    if(readErr.value() == 109 and read > 0) {
+    auto &[readErr, read, writeResult] = *formatResult;
+    auto &[writeErr, write]            = writeResult;
+    if (readErr.value() == 109 and read > 0) {
       broadcaster_->Send(Serializer<CppFormatState::Success>{}.Serialize(commandIdx, buffer));
-    } else if(readErr or writeErr) {
+    } else if (readErr or writeErr) {
       fmt::println("error {}, {}", readErr.what(), writeErr.what());
-      broadcaster_->Send(Serializer<CppFormatState::Error>{}.Serialize(commandIdx, u8"Unexpected error, report id ####"));
+      broadcaster_->Send(
+        Serializer<CppFormatState::Error>{}.Serialize(commandIdx, u8"Unexpected error, report id ####"));
     }
 
     sig.emit(asio::cancellation_type::partial);
     timeout.expires_after(std::chrono::seconds(3));
     auto [exitRequest] = co_await timeout.async_wait(asio::as_tuple(asio::use_awaitable));
-    if(not exitRequest) sig.emit(asio::cancellation_type::terminal);
+    if (not exitRequest) sig.emit(asio::cancellation_type::terminal);
   }
 
   co_return std::nullopt;

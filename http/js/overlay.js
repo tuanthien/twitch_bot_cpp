@@ -62,9 +62,24 @@ async function displayGenericMessage(data) {
         break;
       }
       case 'emote': {
-        let elem = document.createElement("img");
-        elem.setAttribute('src', msgPart.value);
-        msgSpan.append(elem);
+        const scale = '1.0';
+        const theme = 'dark';
+
+        const elems_static = document.createElement("img");
+        elems_static.classList.add('emote');
+        elems_static.setAttribute('src', `https://static-cdn.jtvnw.net/emoticons/v2/${msgPart.value}/static/${theme}/${scale}`);
+        elems_static.setAttribute('onerror', "this.style.display='none'");
+        msgSpan.append(elems_static);
+
+        const elem_animated = document.createElement("img");
+        elem_animated.classList.add('emote');
+        elem_animated.setAttribute('src', `https://static-cdn.jtvnw.net/emoticons/v2/${msgPart.value}/animated/${theme}/${scale}`);
+        elem_animated.setAttribute('onerror', "this.style.display='none'");
+        elem_animated.addEventListener("load", (event) => {
+          elems_static.style['display'] = 'none';
+        });
+        
+        msgSpan.append(elem_animated);
         break;
       }
     }
